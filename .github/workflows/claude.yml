@@ -35,6 +35,8 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Auth: Max subscribers use a long-lived OAuth token generated
+          # locally with `claude setup-token`. API users use ANTHROPIC_API_KEY.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Optional: pin model
           # model: claude-opus-4-7
