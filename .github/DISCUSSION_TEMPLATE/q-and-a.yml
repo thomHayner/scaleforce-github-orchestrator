@@ -1,0 +1,16 @@
+title: "[Q] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What were you trying to do? What have you already checked?
+    validations:
+      required: false
