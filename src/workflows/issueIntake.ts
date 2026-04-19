@@ -23,11 +23,10 @@ export default async function issueOpenedIntake(context: any): Promise<any> {
     // Add the 'intake' Label to the new Issue
     await addLabel("intake", context);
 
-    // Greet the user and direct them to Telegram
+    // Greet the user
+    // TODO: add a community link (Discord/Slack/etc.) once decided.
     const greeting = `Hi there @${context.payload.sender.login}, thanks for opening this issue!\n\
-    Give me a second to to classify the issue, apply labels and see if I have any follow up questions before writing an official report.\n\
-    Also, come join us on Telegram to discuss this issue and other topics with our community!` + `\n` + 
-    `[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AIhawkCommunity)`;
+    Give me a second to classify the issue, apply labels, and see if I have any follow up questions before writing an official report.`;
     const greetingParams = context.issue({
       body: greeting,
     });

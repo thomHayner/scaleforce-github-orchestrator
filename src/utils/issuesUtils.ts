@@ -15,7 +15,7 @@ export async function fetchMessages(context:any) {
   const data = await response.json();
   const messages = await data.map( (n:any) => {
     return {
-      role: n.user.login === 'ai-hawk-birdwatcher[bot]' ? 'assistant' : 'user',
+      role: n.user.login === 'scaleforce[bot]' ? 'assistant' : 'user',
       content: n.body,
     }
   });
@@ -34,8 +34,8 @@ export async function fetchRepo(context:any) {
 
   const data = await response.json();
   const repoInfo = {
-    name: "LinkedIn_AIHawk_Birdwatcher", // await data.name,
-    owner: "thomHayner", // await data.owner,
+    name: "ScaleForce", // await data.name,
+    owner: "ScaleForceAgency", // await data.owner,
     path: ".github/UserNoAiYesTemplates/ISSUE_TEMPLATE/bug-issue.yml"
   }
 

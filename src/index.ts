@@ -15,7 +15,7 @@ export default (app: Probot) => {
   app.on("issue_comment.created", async (context) => {
     // If the comment was made by this bot, don't rely to self:
     // TODO: make the bot name in next line dynamic
-    if (context.payload.sender.login === "ai-hawk-birdwatcher[bot]") {
+    if (context.payload.sender.login === "scaleforce[bot]") {
       return
     }
     // If the issue is still in 'Intake', go to the 'Issue Intake' workflow:

@@ -1,6 +1,8 @@
-# AIHawk_Birdwatcher
+# ScaleForce
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) and integrated with [OpenAI](https://platform.openai.com).  An intelligent GitHub Repository Maintainer Agent for: triaging Issues, reviewing Pull Requests, and moderating Discussions; can be trained on a repository Wiki as well for FAQ and troubleshooting, backwards compatible for existing repositories with issues, pr and discussions histories.
+> A GitHub-native orchestration bot built with [Probot](https://github.com/probot/probot) and integrated with [OpenAI](https://platform.openai.com). ScaleForce triages issues, mediates PR review threads between human and AI contributors (Claude, Copilot), and coordinates the agentic dev workflow inside the repo.
+
+Posts as `scaleforce[bot]`. Lives alongside `claude[bot]` (substantive AI work) and `copilot-swe-agent[bot]` (parallel coding agent), with the human maintainer as the final reviewer.
 
 ## Setup
 
@@ -16,18 +18,23 @@ npm start
 
 ```sh
 # 1. Build container
-docker build -t AIHawk_Birdwatcher .
+docker build -t scaleforce-bot .
 
 # 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> AIHawk_Birdwatcher
+docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> scaleforce-bot
 ```
+
+## Repo conventions
+
+- See [`CLAUDE.md`](../CLAUDE.md) and [`AGENTS.md`](../AGENTS.md) for agent rules.
+- See [`docs/`](../docs/) for product docs (vision, PRDs, specs, ADRs, roadmap).
+- See [`docs/setup/branching.md`](../docs/setup/branching.md) for the branch model.
+- ADRs use [MADR](https://adr.github.io/madr/) format in [`docs/adr/`](../docs/adr/).
 
 ## Contributing
 
-If you have suggestions for how AIHawk_Birdwatcher could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
-
-For more, check out the [Contributing Guide](CONTRIBUTING.md).
+Open an issue or start a Discussion. PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
-[ISC](LICENSE) © 2024 thomHayner
+[ISC](../LICENSE) © 2024 thomHayner

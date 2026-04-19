@@ -1,8 +1,8 @@
 {
-  "name": "AI_Falconiere",
+  "name": "scaleforce-bot",
   "version": "1.0.0",
   "private": true,
-  "description": "An issues wrangler as well as an FAQ and troubleshooting bot agent for AI Hawk",
+  "description": "ScaleForce: a GitHub-native orchestration bot for issue triage, PR review, and AI-agent coordination across the repo.",
   "author": "thomHayner",
   "license": "ISC",
   "homepage": "https://github.com//",
