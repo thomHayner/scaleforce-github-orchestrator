@@ -31,7 +31,8 @@ Chosen: **Multiple GitHub Apps**, each with its own role and identity:
 |---|---|---|
 | `scaleforce[bot]` | This repo's Probot | Orchestration: triage, routing, PR-thread mediation |
 | `claude[bot]` | Anthropic's Claude GitHub App | Substantive AI work: code, deep PR review, spec drafting |
-| `copilot-swe-agent[bot]` | GitHub Copilot coding agent | Parallel coding agent |
+| `copilot-pull-request-reviewer[bot]` | GitHub Copilot (reviewer role) | PR reviewer; `scaleforce[bot]` requests and re-requests reviews until clean. Active use case. |
+| `copilot-swe-agent[bot]` | GitHub Copilot (coding-agent role) | Parallel coding agent. Documented but not the primary workflow. |
 
 Local Claude Code CLI does **not** post on GitHub under the maintainer's identity. Either:
 1. Route GitHub-side activity through the Claude App, or

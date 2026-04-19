@@ -2,7 +2,7 @@
 
 > A GitHub-native orchestration bot built with [Probot](https://github.com/probot/probot) and integrated with [OpenAI](https://platform.openai.com). ScaleForce triages issues, mediates PR review threads between human and AI contributors (Claude, Copilot), and coordinates the agentic dev workflow inside the repo.
 
-Posts as `scaleforce[bot]`. Lives alongside `claude[bot]` (substantive AI work) and `copilot-swe-agent[bot]` (parallel coding agent), with the human maintainer as the final reviewer.
+Posts as `scaleforce[bot]`. Lives alongside `claude[bot]` (substantive AI work) and `copilot-pull-request-reviewer[bot]` (GitHub Copilot PR reviewer — ScaleForce requests and re-requests reviews from it until clean). `copilot-swe-agent[bot]` (Copilot coding agent) is documented but not the primary workflow. The human maintainer is the final reviewer.
 
 ## Setup
 

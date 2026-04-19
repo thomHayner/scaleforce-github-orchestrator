@@ -9,7 +9,8 @@ Conventions for **all AI agents** working in this repo (Claude, Copilot, Codex, 
 | `thomHayner` | Human maintainer, final reviewer, merger |
 | `scaleforce[bot]` | Orchestration: triage, routing, PR-thread mediation, label management |
 | `claude[bot]` | Substantive AI work — code, deep PR reviews, spec drafting |
-| `copilot-swe-agent[bot]` | Parallel coding agent, often producing competing PRs |
+| `copilot-pull-request-reviewer[bot]` | GitHub Copilot PR reviewer. `scaleforce[bot]` requests and re-requests reviews from this identity until clean. |
+| `copilot-swe-agent[bot]` | GitHub Copilot coding agent. Available but not the primary workflow; would produce competing PRs alongside Claude. |
 | `dependabot[bot]`, `vercel[bot]`, etc. | Standard infra bots |
 
 Agents have distinct identities **on purpose**. Do not impersonate the maintainer or another agent.
