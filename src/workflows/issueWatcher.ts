@@ -15,7 +15,7 @@ export default async function issueCommentCreated(context: any): Promise<any> {
     const data = await response.json();
     const messages = await data.map( (n:any) => {
       return {
-        role: n.user.login === 'ai-hawk-birdwatcher[bot]' ? 'assistant' : 'user',
+        role: n.user.login === 'scaleforce[bot]' ? 'assistant' : 'user',
         content: n.body,
       }
     });
@@ -34,7 +34,8 @@ export default async function issueCommentCreated(context: any): Promise<any> {
   ///// If the agent decided on a 'primary label':
   if (aiResponseMessage.includes("PRIMARY_LABEL: ")) {
     const primaryLabel = "bug";
-    await context.octokit.rest.issues.addLabels({ owner: "thomHayner", repo: "AI_HAWK", issue_numbner: "32", labels: [primaryLabel] });
+    // FIXME: hardcoded owner/repo/issue from initial scaffolding; replace with context.issue() and fix `issue_numbner` typo before enabling.
+    await context.octokit.rest.issues.addLabels({ owner: "thomHayner", repo: "scaleforce-github-orchestrator", issue_numbner: "32", labels: [primaryLabel] });
 
     /// Fetch the repo details to feed into Octokit:
     async function fetchRepo() {
@@ -47,8 +48,8 @@ export default async function issueCommentCreated(context: any): Promise<any> {
 
       const data = await response.json();
       const repoInfo = {
-        name: "LinkedIn_AIHawk_Birdwatcher", // await data.name,
-        owner: "thomHayner", // await data.owner,
+        name: "ScaleForce", // await data.name,
+        owner: "ScaleForceAgency", // await data.owner,
         path: ".github/UserNoAiYesTemplates/ISSUE_TEMPLATE/bug-issue.yml"
       }
 

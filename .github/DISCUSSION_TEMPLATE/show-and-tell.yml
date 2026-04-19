@@ -1,0 +1,15 @@
+title: "[Show & Tell] "
+labels: ["show-and-tell"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What did you build / learn / try?
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Links, screenshots, demos
+    validations:
+      required: false
