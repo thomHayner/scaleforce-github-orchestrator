@@ -1,4 +1,4 @@
-# 0005. Copilot-reviewer loop: zero-comments exit, PR-author-owned triage
+# 0005. Copilot-reviewer loop: terminal-state invariant, triage taxonomy, anchor on `copilot-recursive-review` skill
 
 - **Status**: proposed
 - **Date**: 2026-04-19
@@ -7,74 +7,100 @@
 
 ## Context and Problem Statement
 
-`scaleforce[bot]` orchestrates PR review in this repo. GitHub Copilot, assigned as a reviewer on PRs, posts reviews as `copilot-pull-request-reviewer[bot]`. Two questions need settled answers before probot can implement the re-request loop:
+`scaleforce[bot]` orchestrates PR review. GitHub Copilot (login `copilot-pull-request-reviewer[bot]`) is the only AI that can be assigned via `requested_reviewers` — empirically verified; GitHub silently rejects every other App. Copilot is also restricted to `COMMENTED` reviews by GitHub/Microsoft, so branch protection approvals are never satisfied by a bot (confirmed in GitHub's [About protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) — only eligible human reviewers can issue counting `APPROVED` reviews).
 
-1. **What signals "clean"** — when does ScaleForce stop re-requesting review from Copilot?
-2. **Who handles Copilot's review comments** — when Copilot leaves suggestions, whose job is it to triage and apply fixes?
+We need explicit rules for the loop `scaleforce[bot]` will drive when Copilot reviews a PR:
 
-Both are orchestration rules probot will enforce automatically, so they need to be explicit and stable.
+1. **What signals "clean"** — when does ScaleForce stop re-requesting review?
+2. **Who handles Copilot's comments** — triage responsibility and terminal states.
+3. **How does the loop avoid running forever** — safety valve on non-convergence.
+4. **How do we handle non-Copilot bot comments** on the same PR — Vercel, CodeRabbit, Sentry, etc.
+
+A prior version of this ADR proposed a simple "zero comments = clean / 7-iteration hard cap / PR-author triage" model. That's been superseded by the `copilot-recursive-review` skill (lives in `ai-skill-builder-library/skills/software-development/copilot-recursive-review/`), which encodes a richer model from a working two-round prototype. This ADR captures the decision to anchor `scaleforce[bot]`'s implementation on that skill.
 
 ## Decision Drivers
 
-- Copilot's reviewer identity (`copilot-pull-request-reviewer[bot]`) is restricted by GitHub/Microsoft to `COMMENTED` reviews — it cannot post an `APPROVED` state. Any exit condition that waits for approval would loop forever.
-- Copilot reviews; it does not write fixes. Someone else has to triage the suggestions and decide how to respond.
-- This repo may gain additional code agents (Codex, others) over time. The routing rule should extend without a rewrite.
-- Each identity in the agency should own its own work — the PR author is the actor best positioned to judge Copilot's suggestions against the change they authored.
+- The skill is already written and has been run successfully end-to-end. Reinventing the loop in ScaleForce would diverge from a working implementation.
+- "Zero comments" is too coarse — real reviews produce a mix of legitimate concerns, false positives, scope-creep suggestions, and noise. Each needs a different disposition.
+- Round counting is a weak proxy for non-convergence. A PR can loop 2 rounds and be stuck; another can loop 10 productive rounds. Pattern-based termination beats counter-based.
+- Copilot is not the only bot on a typical PR. The orchestration model has to absorb Vercel previews, CodeRabbit, Sentry, Renovate, and in-house agentic bots — not just Copilot.
+- Probot is stateless-per-event; the loop's state must be reconstructible from GitHub + persisted scratch, not held in process memory.
 
 ## Considered Options
 
-- **Option A: exit on `APPROVED`.** Standard GitHub review semantics. Rejected because Copilot can't ever reach this state.
-- **Option B: exit on `COMMENTED` with zero review comments.** Treats "nothing to say" as approval-equivalent for the purposes of the loop.
-- **Option C: exit on a maintainer override only.** Always surface Copilot's review to the maintainer; never auto-exit.
-
-For fix-routing:
-- **Option X: always route to `claude[bot]`.** Simple; works while Claude is the only non-human code agent.
-- **Option Y: always route to the maintainer.** Low automation.
-- **Option Z: route based on PR author.** Claude's PRs get `@claude`, the maintainer's PRs get the maintainer, future agents get themselves.
+- **Option A** (original ADR 0005): zero-comments exit, 7-iteration hard cap, PR-author triage, Copilot-only.
+- **Option B** (this ADR): anchor on `copilot-recursive-review` skill — terminal-state invariant with 6-outcome triage, non-convergence pattern detection as the safety valve, skill's "other bots" section for non-Copilot traffic.
+- **Option C**: write a new orchestration model from scratch inside ScaleForce. Rejected — duplicates working code and invites drift.
 
 ## Decision Outcome
 
-Chosen:
+Chosen: **Option B** — `scaleforce[bot]` implements the loop as defined by the `copilot-recursive-review` skill. The skill is the authoritative definition; this ADR summarizes the contract and captures the decision.
 
-- **Exit condition: Option B** — Copilot's review comes back with zero review comments (i.e. `COMMENTED` state, empty comment list). This is "clean."
-- **Fix routing: Option Z** — `scaleforce[bot]` pings the PR author when Copilot leaves comments. The PR author owns triage.
+### The loop — summary (authoritative detail in the skill)
 
-### The loop, explicitly
+1. `scaleforce[bot]` requests review from Copilot and records the PR HEAD SHA.
+2. Wait on a cadence picked to keep the Anthropic prompt cache warm (270s default, per the skill's rationale).
+3. On each wake, fetch Copilot reviews matching the current HEAD. If none, wait again.
+4. When a matching review arrives, fetch its inline comments. Each comment gets one of the six triage outcomes below.
+5. Apply FIXes (verified via the repo's lint/test/build), open Discussions / Issues for DISCUSS / DEFER, reply on every thread, resolve terminal-state threads, commit, push.
+6. Re-request review on the new HEAD. Repeat.
 
-1. `scaleforce[bot]` requests review from Copilot on a PR.
-2. On `pull_request_review` with `review.user.login === "copilot-pull-request-reviewer[bot]"`:
-   - **Zero review comments** → exit. PR is clean as far as Copilot is concerned.
-   - **One or more review comments** → ping the PR author to triage (loops 1–6), or escalate to the maintainer (loop 7+).
-3. PR author (or maintainer on escalation) triages Copilot's suggestions: accept and fix, modify, or reject inline with rationale.
-4. PR author pushes fixes and signals `scaleforce[bot]` to re-request review from Copilot.
-5. Recurse until exit (zero comments) or escalation (loop 7).
+### The terminal-state invariant
 
-### Max iterations
+Every Copilot thread must end the loop in one of six states. This is the skill's central contract:
 
-The loop caps at **7 iterations**. `scaleforce[bot]` tracks iteration count per PR (e.g. as a label, a sticky comment, or a stored counter). On the 7th review-with-comments, the routing flips from PR author to maintainer — this is the signal that author/Copilot are not converging and a human needs to break the tie (adjust scope, override a Copilot suggestion, or close the PR).
+| Triage | Reply on thread | Side effect | Thread state |
+|---|---|---|---|
+| **FIX** | "Applied in `<sha>`: <what changed, where, how verified>" | Commit pushed to PR branch | resolved |
+| **REJECT** | "Not changing: <2–4 sentence justification citing rule/file/convention>" | none | resolved |
+| **DISCUSS** | "Opened <Discussion link> to track this design question; resolving." | New GitHub Discussion + backlink | resolved |
+| **DEFER** | "Legitimate but out of scope; filed <Issue link> to track; resolving." | New GitHub Issue + backlink | resolved |
+| **NOISE** | "Skipping — <duplicate / stale / opted-out / auto-generated non-signal>." | none | resolved |
+| **HUMAN-PAUSE** | "Pausing here for human review — <reason>" | Surface to user; loop halts | **left open**, called out in final report |
 
-Rationale for seven: high enough that normal back-and-forth never trips it (most PRs converge in 1–2 loops), low enough that a runaway loop gets caught before it wastes real time or API quota.
+**DISCUSS vs DEFER** is about the *shape* of the follow-up, not its importance: open-ended question → Discussion; concrete scoped work → Issue. If Discussions are disabled on the repo, fold DISCUSS into DEFER with a `question`/`discussion` label.
 
-### Routing table
+`HUMAN-PAUSE` is the only escape hatch and it should be rare. If the bot uses it for >~10% of comments, something in the loop isn't working.
 
-| PR author | `scaleforce[bot]` pings |
-|---|---|
-| `claude[bot]` | `@claude` in the PR thread |
-| `thomHayner` (maintainer) | the maintainer directly |
-| future code agents (e.g. Codex) | that agent's handle |
+### Termination
+
+The loop stops when **any** of these is true:
+
+- Zero unresolved Copilot threads on the current HEAD after a fresh review.
+- A `HUMAN-PAUSE` was raised this round.
+- The maintainer says stop / takes over.
+- **Same class of comment recurs for 3 rounds in a row with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve; it replaces the 7-iteration hard cap from the prior ADR version. Pattern-based detection catches the actual pathology (we're not converging) rather than a proxy for it.
+
+### Non-Copilot bot traffic
+
+Other bots comment on the same PR — Vercel previews, CodeRabbit, Renovate, Sentry, in-house agentic bots. Same six-outcome triage taxonomy applies to their threads. `FIX` has four concrete shapes when responding to another bot:
+
+1. Fix on our end (edit our code/config, push, the bot re-runs and re-posts).
+2. Agent-to-agent directive (e.g. `@coderabbitai resolve` for bots that accept structured in-thread commands).
+3. Trigger an external action (re-run a workflow, redeploy).
+4. Acknowledge-and-resolve (bot announced something with no action needed).
+
+The loop is done only when **all** bot threads, not just Copilot's, are in a terminal state. Detail in the skill's "Other bots on the same PR" section.
+
+### Durable state
+
+Probot is stateless across events. The loop's state — round number, HEAD SHA, per-comment triage decisions, commits made — must be reconstructible from a mix of GitHub API queries and persistent scratch (a label on the PR, a sticky comment, or a stored counter keyed by PR number). The skill encodes this via `TodoWrite` for local use; the ScaleForce implementation will choose a GitHub-durable equivalent when it's built.
+
+Critically: "zero comments on this HEAD" is not inferable from the `pull_request_review` webhook payload — that event doesn't carry an inline-comment count. `scaleforce[bot]` must compute it by fetching the review's inline comments — `GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments` — counting the returned items, and filtering to threads tied to the current HEAD SHA.
 
 ### Consequences
 
-- Good: loop terminates deterministically — no waiting for a state Copilot cannot produce.
-- Good: routing extends to new code agents by adding a row, not changing logic.
-- Good: the 7-iteration cap bounds worst-case cost and guarantees a human gets pulled in on pathological loops.
-- Good: preserves the "each identity owns its work" principle from [ADR 0003](0003-bot-identity-separation.md).
-- Bad: zero-comments-as-clean is a convention, not a formal approval. A human reviewer is still required before merge to `main` per the branch model ([ADR 0002](0002-use-feature-dev-main-branch-model.md)).
-- Neutral: if Copilot ever gains the ability to approve (or GitHub relaxes the restriction), the exit condition should be revisited — at that point `APPROVED` becomes the stronger signal.
+- Good: aligns with working implementation rather than reinventing it. Skill and ADR stay in sync by construction.
+- Good: six-outcome triage gives Discussions and Issues a consistent vocabulary across phases (see forthcoming ADR 0007 on routing).
+- Good: pattern-based non-convergence detection is more sensitive than a round cap — catches stuck loops earlier without terminating productive ones.
+- Good: other-bots handling collapses into the same taxonomy, so ScaleForce doesn't need a separate code path per bot.
+- Bad: authoritative loop definition lives in a different repo (`ai-skill-builder-library`). If the skill moves or is renamed, this ADR needs an update. Mitigation: reference by skill name, not path, and keep the name stable.
+- Neutral: human approval remains the only branch-protection merge gate. The loop produces advisory signal; it does not unblock merge.
 
 ## More Information
 
-- [`llm-wiki/agents/copilot.md`](../../llm-wiki/agents/copilot.md) — agent-facing description of the loop.
-- [ADR 0003](0003-bot-identity-separation.md) — identity separation rationale.
-- GitHub REST: `POST /repos/{owner}/{repo}/pulls/{number}/requested_reviewers` with `reviewers: ["Copilot"]`.
-- Webhook: `pull_request_review` — dispatch on `review.user.login`.
+- [`copilot-recursive-review`](https://github.com/thomHayner/ai-skill-builder-library) skill — authoritative loop definition (path at time of writing: `skills/software-development/copilot-recursive-review/SKILL.md`).
+- [ADR 0003](0003-bot-identity-separation.md) — identity separation, where the bot logins are enumerated.
+- [ADR 0007](0007-github-function-routing.md) — the routing schema that decides *when* to invoke this loop.
+- [`llm-wiki/agents/copilot.md`](../../llm-wiki/agents/copilot.md) — agent-facing summary.
+- GitHub REST: `POST /repos/{owner}/{repo}/pulls/{number}/requested_reviewers` with `reviewers: ["copilot-pull-request-reviewer[bot]"]`. Webhook: `pull_request_review` → dispatch on `review.user.login`.

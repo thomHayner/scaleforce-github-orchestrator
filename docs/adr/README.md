@@ -19,3 +19,6 @@ See [`template.md`](template.md) — copy it for new ADRs.
 - [0002](0002-use-feature-dev-main-branch-model.md) — Use `feature → dev → main` branch model
 - [0003](0003-bot-identity-separation.md) — Separate bot identities for orchestration vs. AI work
 - [0004](0004-docs-tree-over-github-wiki.md) — Use `docs/` tree instead of GitHub Wiki
+- [0005](0005-copilot-reviewer-loop.md) — Copilot-reviewer loop: terminal-state invariant, triage taxonomy, anchor on `copilot-recursive-review` skill
+- [0006](0006-llm-observability.md) — LLM observability: structured agent-event logs now, tracing vendor deferred
+- [0007](0007-github-function-routing.md) — GitHub function routing: cascading defaults with per-function overrides

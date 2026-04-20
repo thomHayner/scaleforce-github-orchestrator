@@ -13,25 +13,41 @@ Both are GitHub products, so comments from either get the purple **AI** pill (th
 
 ## Reviewer role — the active use case
 
-- **Invoke**: assign Copilot as a reviewer on a PR (via the Reviewers sidebar, or programmatically via `POST /repos/{owner}/{repo}/pulls/{number}/requested_reviewers` with `reviewers: ["Copilot"]`).
-- **Event to listen for**: `pull_request_review` with `review.user.login === "copilot-pull-request-reviewer[bot]"`.
-- **Copilot cannot approve.** GitHub/Microsoft restricts `copilot-pull-request-reviewer[bot]` to `COMMENTED` reviews — it will never post an `APPROVED` state. So the loop-exit condition must be "zero comments," not "approved."
-- **Copilot only reviews — it does not fix.** Its output is suggestions. The PR author is responsible for triaging those suggestions and deciding how to proceed (accept, modify, or reject with rationale).
-- **Re-request loop** (driven by `scaleforce[bot]`):
-  1. Request review from Copilot.
-  2. When Copilot's review arrives:
-     - **Zero review comments** → **exit** (this is "clean").
-     - **One or more review comments** → route to the **PR author** (loops 1–6) or **escalate to the maintainer** (loop 7) to triage, fix, push, then re-request review.
-  3. Recurse until a review comes back with zero comments or the 7-iteration cap fires.
-- **Max 7 iterations.** `scaleforce[bot]` tracks iteration count per PR. On the 7th review-with-comments, the routing flips from PR author to maintainer — author/Copilot aren't converging and a human needs to break the tie.
-- **Routing by PR author** (who `scaleforce[bot]` pings to handle the comments):
-  | PR author | Routes to |
-  |---|---|
-  | `claude[bot]` | `@claude` in the PR thread |
-  | `thomHayner` (maintainer) | the maintainer |
-  | future code agents (e.g. Codex) | that agent's handle |
+The loop is defined authoritatively by the [`copilot-recursive-review`](https://github.com/thomHayner/ai-skill-builder-library) skill (path: `skills/software-development/copilot-recursive-review/SKILL.md`). [ADR 0005](../../docs/adr/0005-copilot-reviewer-loop.md) captures the decision to anchor `scaleforce[bot]` on it. This file is the agent-facing summary; the skill is the source of truth.
 
-  The PR author agent owns triage: weigh Copilot's suggestions, apply fixes where warranted, reply inline with rationale where rejecting, then push and ask `scaleforce[bot]` to re-request review.
+- **Invoke**: assign Copilot as a reviewer on a PR. UI shows the display name **Copilot** in the Reviewers sidebar; the underlying login is `copilot-pull-request-reviewer[bot]`. Programmatic: `POST /repos/{owner}/{repo}/pulls/{number}/requested_reviewers` with `reviewers: ["copilot-pull-request-reviewer[bot]"]` (send the login, not the display name).
+- **Event to listen for**: `pull_request_review` with `review.user.login === "copilot-pull-request-reviewer[bot]"`.
+- **Copilot cannot approve.** GitHub/Microsoft restricts `copilot-pull-request-reviewer[bot]` to `COMMENTED` reviews — it will never post an `APPROVED` state. Branch-protection approvals still require a human reviewer.
+- **Copilot only reviews — it does not fix.** Its output is suggestions. `scaleforce[bot]` (via the skill) triages each thread.
+
+### Loop summary
+
+1. `scaleforce[bot]` requests review from Copilot and records the current HEAD SHA.
+2. Waits on a cache-warm cadence (~270s default).
+3. On each wake, fetches Copilot reviews matching HEAD. The `pull_request_review` webhook does **not** carry an inline-comment count — compute it with `GET /repos/{o}/{r}/pulls/{n}/reviews/{review_id}/comments` and filter to the current HEAD.
+4. Each inline comment is triaged into one of six terminal states:
+
+| Triage | Reply | Side effect | Thread |
+|---|---|---|---|
+| **FIX** | "Applied in `<sha>`: …" | commit pushed | resolved |
+| **REJECT** | "Not changing: …" | none | resolved |
+| **DISCUSS** | "Opened <Discussion link>." | new Discussion | resolved |
+| **DEFER** | "Filed <Issue link>." | new Issue | resolved |
+| **NOISE** | "Skipping — <why>." | none | resolved |
+| **HUMAN-PAUSE** | "Pausing — <reason>." | surface to user; loop halts | left open |
+
+5. Re-request review on the new HEAD. Repeat.
+
+### Termination (any one triggers exit)
+
+- Zero unresolved Copilot threads on the current HEAD after a fresh review.
+- `HUMAN-PAUSE` raised this round.
+- Maintainer says stop / takes over.
+- **Same class of comment recurs for 3 rounds with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve (replaces the earlier 7-iteration hard cap; pattern detection beats counter-based).
+
+### Other bots on the same PR
+
+Vercel previews, CodeRabbit, Sentry, Renovate, in-house agentic bots — the same six-outcome triage applies. `FIX` takes four shapes for bot threads: fix-on-our-end, agent-to-agent directive (e.g. `@coderabbitai resolve`), trigger-external-action (rerun workflow, redeploy), or acknowledge-and-resolve. The loop is done only when **all** bot threads are terminal, not just Copilot's. Detail lives in the skill's "Other bots on the same PR" section.
 
 ## Coding-agent role — documented, not active
 
