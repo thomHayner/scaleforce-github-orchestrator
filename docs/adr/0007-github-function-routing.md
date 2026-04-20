@@ -70,7 +70,7 @@ orchestrator:
 
 `pr-reviews` is the one slot the cascade does *not* apply to by default. The `default:` key covers `bug-reports`, `issues`, `discussions`, `documentation`, and `pr-prep`; `pr-reviews` gets a schema-provided default of `[copilot]` and is only changed via an explicit `orchestrator.slots.pr-reviews` override. `pr-triage` is not a slot at all (see below).
 
-### The seven functions (slots)
+### The six slots (and one inherent function)
 
 | Slot | What it covers | Default handler mechanism |
 |---|---|---|
@@ -111,11 +111,11 @@ orchestrator:
 
 | Handler name | Mechanism | Valid slots |
 |---|---|---|
-| `claude` | `@mention` of `@claude` + Claude Code Action workflow | all except `pr-reviews[reviewer]` |
-| `claude-preflight` | Skill run during `pr-prep` (no `@mention`) | `pr-reviews` only (as preflight) |
+| `claude` | `@mention` of `@claude` + Claude Code Action workflow | any slot; in `pr-reviews`, only as a preflight entry (cannot be assigned via `requested_reviewers`) |
+| `claude-preflight` | Skill run during `pr-prep` (no `@mention`) | `pr-reviews` only, as a preflight entry |
 | `copilot` | `requested_reviewers` + `pull_request_review` webhook loop | `pr-reviews` only (GitHub constraint) |
 | `maintainer` | Ping `@thomHayner` | all |
-| *(future)* `codex` | `@codex` mention or dedicated action | all except `pr-reviews[reviewer]` until GitHub whitelists |
+| *(future)* `codex` | `@codex` mention or dedicated action | any slot; in `pr-reviews`, only as a preflight entry until GitHub whitelists it for `requested_reviewers` |
 
 Constraint enforcement: `scaleforce[bot]` rejects config that puts a non-assignable handler into `pr-reviews` as a reviewer entry (would silently no-op at runtime otherwise). Preflight entries are fine regardless of App whitelisting since they don't touch `requested_reviewers`.
 

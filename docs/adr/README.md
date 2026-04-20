@@ -4,7 +4,7 @@ Decisions that shape the system, captured in [MADR](https://adr.github.io/madr/)
 
 ## Conventions
 
-- One file per decision: `NNNN-short-slug.md`, sequentially numbered.
+- One file per decision: `NNNN-short-slug.md`. Numbers are assigned in order of proposal; a reserved number for an in-flight ADR may briefly leave a gap in the merged index until that ADR lands. Do not renumber a merged ADR to close a gap — inbound links depend on the number being stable.
 - Status flows: `proposed` → `accepted` → (optionally) `deprecated` / `superseded by NNNN`.
 - Never delete an ADR. Supersede it with a new one and update the old one's status.
 - Architecture-affecting PRs must add or update an ADR in the same PR.
