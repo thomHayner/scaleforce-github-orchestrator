@@ -61,8 +61,14 @@ Terse form for "whole agency" configs:
 
 ```yaml
 orchestrator:
-  default: claude   # everything Claude-owned; pr-reviews still uses Copilot via the constraint below
+  default: claude
+  # pr-reviews is not inherited from default. It has a built-in default of
+  # [copilot] because Copilot is the only AI that can be assigned via
+  # requested_reviewers (see "Mechanism rail" below). Override explicitly
+  # under orchestrator.slots.pr-reviews to extend or replace the list.
 ```
+
+`pr-reviews` is the one slot the cascade does *not* apply to by default. The `default:` key covers `bug-reports`, `issues`, `discussions`, `documentation`, and `pr-prep`; `pr-reviews` gets a schema-provided default of `[copilot]` and is only changed via an explicit `orchestrator.slots.pr-reviews` override. `pr-triage` is not a slot at all (see below).
 
 ### The seven functions (slots)
 
@@ -92,9 +98,11 @@ Because:
 Schema allows:
 
 ```yaml
-pr-reviews:
-  - copilot                 # GitHub-reviewer mechanism; the recursive loop from ADR 0005
-  - claude-preflight        # skill mechanism; runs in pr-prep before PR opens
+orchestrator:
+  slots:
+    pr-reviews:
+      - copilot              # GitHub-reviewer mechanism; the recursive loop from ADR 0005
+      - claude-preflight     # skill mechanism; runs in pr-prep before PR opens
 ```
 
 `scaleforce[bot]` consults the list and dispatches each entry through its declared mechanism. The `copilot` entry triggers the loop described in [ADR 0005](0005-copilot-reviewer-loop.md).

@@ -39,17 +39,17 @@ Chosen: **Option B** — `scaleforce[bot]` implements the loop as defined by the
 ### The loop — summary (authoritative detail in the skill)
 
 1. `scaleforce[bot]` requests review from Copilot and records the PR HEAD SHA.
-2. Wait on a cadence picked to keep the Anthropic prompt cache warm (270s default, per the skill's rationale).
+2. Wait on a configurable polling cadence. The skill uses 270s by default, chosen to amortize its own runtime's prompt-cache reuse; the ScaleForce Probot will pick its own cadence based on polling cost, API-rate-limit headroom, and target review latency in its own stack — not coupled to any specific LLM provider's cache behavior.
 3. On each wake, fetch Copilot reviews matching the current HEAD. If none, wait again.
-4. When a matching review arrives, fetch its inline comments. Each comment gets one of the six triage outcomes below.
-5. Apply FIXes (verified via the repo's lint/test/build), open Discussions / Issues for DISCUSS / DEFER, reply on every thread, resolve terminal-state threads, commit, push.
+4. When a matching review arrives, fetch its review threads for the current HEAD. Each thread — which may contain multiple inline comments — gets one of the six triage outcomes below.
+5. Apply FIXes (verified via the repo's lint/test/build), open Discussions / Issues for DISCUSS / DEFER, reply on every triaged thread, resolve terminal-state threads, commit, push.
 6. Re-request review on the new HEAD. Repeat.
 
 All orchestration writes in this loop — the review request, per-thread triage replies, thread resolutions, Discussion and Issue creation — run under `scaleforce[bot]`'s installation token. The maintainer PAT is not a fallback. See [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant).
 
 ### The terminal-state invariant
 
-Every Copilot thread must end the loop in one of six states. This is the skill's central contract:
+Every Copilot review thread must end the loop in one of six states. GitHub's resolvable unit is the thread, so triage and terminal-state enforcement are both defined at the thread level (a thread may contain multiple inline comments; the whole thread takes one outcome). This is the skill's central contract:
 
 | Triage | Reply on thread | Side effect | Thread state |
 |---|---|---|---|
@@ -62,7 +62,7 @@ Every Copilot thread must end the loop in one of six states. This is the skill's
 
 **DISCUSS vs DEFER** is about the *shape* of the follow-up, not its importance: open-ended question → Discussion; concrete scoped work → Issue. If Discussions are disabled on the repo, fold DISCUSS into DEFER with a `question`/`discussion` label.
 
-`HUMAN-PAUSE` is the only escape hatch and it should be rare. If the bot uses it for >~10% of comments, something in the loop isn't working.
+`HUMAN-PAUSE` is the only escape hatch and it should be rare. If the bot uses it on >~10% of threads, something in the loop isn't working.
 
 ### Termination
 
@@ -71,7 +71,7 @@ The loop stops when **any** of these is true:
 - Zero unresolved Copilot threads on the current HEAD after a fresh review.
 - A `HUMAN-PAUSE` was raised this round.
 - The maintainer says stop / takes over.
-- **Same class of comment recurs for 3 rounds in a row with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve; it replaces the 7-iteration hard cap from the prior ADR version. Pattern-based detection catches the actual pathology (we're not converging) rather than a proxy for it.
+- **Same class of thread recurs for 3 rounds in a row with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve; it replaces the 7-iteration hard cap from the prior ADR version. Pattern-based detection catches the actual pathology (we're not converging) rather than a proxy for it.
 
 ### Non-Copilot bot traffic
 
@@ -86,9 +86,9 @@ The loop is done only when **all** bot threads, not just Copilot's, are in a ter
 
 ### Durable state
 
-Probot is stateless across events. The loop's state — round number, HEAD SHA, per-comment triage decisions, commits made — must be reconstructible from a mix of GitHub API queries and persistent scratch (a label on the PR, a sticky comment, or a stored counter keyed by PR number). The skill encodes this via `TodoWrite` for local use; the ScaleForce implementation will choose a GitHub-durable equivalent when it's built.
+Probot is stateless across events. The loop's state — round number, HEAD SHA, per-thread triage decisions, commits made — must be reconstructible from a mix of GitHub API queries and persistent scratch (a label on the PR, a sticky comment, or a stored counter keyed by PR number). The skill encodes this via `TodoWrite` for local use; the ScaleForce implementation will choose a GitHub-durable equivalent when it's built.
 
-Critically: "zero comments on this HEAD" is not inferable from the `pull_request_review` webhook payload — that event doesn't carry an inline-comment count. `scaleforce[bot]` must compute it by fetching the review's inline comments — `GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments` — counting the returned items, and filtering to threads tied to the current HEAD SHA.
+Critically: "zero unresolved threads on this HEAD" is not inferable from the `pull_request_review` webhook payload — that event carries neither inline-comment counts nor thread resolution state. `scaleforce[bot]` must compute it by fetching the review's inline comments (`GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments`) plus the PR's review threads via the GraphQL `pullRequest.reviewThreads` field (for `isResolved`), then filtering to threads tied to the current HEAD SHA.
 
 ### Consequences
 

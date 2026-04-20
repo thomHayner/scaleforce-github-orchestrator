@@ -23,9 +23,9 @@ The loop is defined authoritatively by the [`copilot-recursive-review`](https://
 ### Loop summary
 
 1. `scaleforce[bot]` requests review from Copilot and records the current HEAD SHA.
-2. Waits on a cache-warm cadence (~270s default).
-3. On each wake, fetches Copilot reviews matching HEAD. The `pull_request_review` webhook does **not** carry an inline-comment count — compute it with `GET /repos/{o}/{r}/pulls/{n}/reviews/{review_id}/comments` and filter to the current HEAD.
-4. Each inline comment is triaged into one of six terminal states:
+2. Waits on a configurable polling cadence (skill default: 270s, tuned to its own runtime; ScaleForce picks its own).
+3. On each wake, fetches Copilot reviews matching HEAD. The `pull_request_review` webhook does **not** carry inline-comment counts or thread-resolution state — compute both with `GET /repos/{o}/{r}/pulls/{n}/reviews/{review_id}/comments` plus the GraphQL `pullRequest.reviewThreads` field, filtered to the current HEAD.
+4. Each review thread (which may contain multiple inline comments) is triaged into one of six terminal states — triage and resolution are both thread-level:
 
 | Triage | Reply | Side effect | Thread |
 |---|---|---|---|
