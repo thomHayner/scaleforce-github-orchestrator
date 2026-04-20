@@ -40,6 +40,21 @@ Local Claude Code CLI does **not** post on GitHub under the maintainer's identit
 
 Commits are always authored by the maintainer's git identity with `Co-Authored-By: Claude <noreply@anthropic.com>` trailers.
 
+### Actor provenance invariant
+
+The identity table above is not descriptive — it is an **operational invariant**. Every GitHub write that is part of orchestration work must be attributable, at the GitHub level, to the identity that owns that work:
+
+- **Orchestration actions run under `scaleforce[bot]`.** Review requests and re-requests, triage replies to review comments, thread resolutions (`resolveReviewThread`), Discussion creation, Issue creation/updates from triage, labels, sticky comments for loop state — all of these are `scaleforce[bot]`'s work and must post under its installation token, never a maintainer PAT or any other identity.
+- **AI code work runs under `claude[bot]`** (or whichever code-agent identity authored it), not under the maintainer. See the rule above about local `gh` auth.
+- **Reviewer output runs under the reviewer's identity.** Copilot's inline comments are `copilot-pull-request-reviewer[bot]`'s; pre-PR review output from a skill is attributed to the corresponding handler identity, not to whoever ran the skill.
+- **The maintainer's identity is reserved for explicit human decisions** — branch-protection approvals, merges, overrides, and judgment calls that deliberately override automation. If a human token is posting routine orchestration output, that is a governance bug to fix, not an acceptable shortcut.
+
+**Why it matters.** The whole identity table is worthless if anyone can post under the wrong name. A `thomHayner`-authored triage reply is indistinguishable, in a thread, from a real maintainer decision — it silently steals the audit trail that [ADR 0003](0003-bot-identity-separation.md) exists to protect.
+
+**Interim exception.** While `scaleforce[bot]` is not yet deployed, orchestration actions taken manually by the maintainer (e.g., running `gh` auth'd as the maintainer to post triage replies) are a known temporary gap. These actions should be migrated to `scaleforce[bot]` the moment the App is live. They are not a precedent.
+
+**How to enforce.** Before merging code that performs a GitHub write, ask: *which identity does this post under at runtime?* If the answer is "whoever ran the script," the code is wrong. `scaleforce[bot]` writes use the Probot / Octokit client built from its installation token; Claude writes use the Claude App's token; the maintainer PAT is not a fallback.
+
 ### Consequences
 
 - Good: every thread shows who said what, instantly.

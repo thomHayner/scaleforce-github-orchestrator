@@ -111,6 +111,8 @@ pr-reviews:
 
 Constraint enforcement: `scaleforce[bot]` rejects config that puts a non-assignable handler into `pr-reviews` as a reviewer entry (would silently no-op at runtime otherwise). Preflight entries are fine regardless of App whitelisting since they don't touch `requested_reviewers`.
 
+**Actor provenance**: every handler runs its mechanism under the handler's own installation / app token — Claude writes post as `claude[bot]`, Copilot's reviewer output is `copilot-pull-request-reviewer[bot]`, dispatcher/orchestration writes are `scaleforce[bot]`. The dispatcher never proxies a handler's output under the maintainer PAT. See [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant).
+
 ### Shared vocabulary across slots
 
 All slots that produce structured output (issues triage, PR reviews, discussions) use the same six-outcome taxonomy from [ADR 0005](0005-copilot-reviewer-loop.md):

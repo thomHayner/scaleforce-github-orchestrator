@@ -45,6 +45,8 @@ Chosen: **Option B** — `scaleforce[bot]` implements the loop as defined by the
 5. Apply FIXes (verified via the repo's lint/test/build), open Discussions / Issues for DISCUSS / DEFER, reply on every thread, resolve terminal-state threads, commit, push.
 6. Re-request review on the new HEAD. Repeat.
 
+All orchestration writes in this loop — the review request, per-thread triage replies, thread resolutions, Discussion and Issue creation — run under `scaleforce[bot]`'s installation token. The maintainer PAT is not a fallback. See [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant).
+
 ### The terminal-state invariant
 
 Every Copilot thread must end the loop in one of six states. This is the skill's central contract:
