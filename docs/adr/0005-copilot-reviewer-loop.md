@@ -93,7 +93,7 @@ Critically: "zero unresolved threads on this HEAD" is not inferable from the `pu
 ### Consequences
 
 - Good: aligns with working implementation rather than reinventing it. Skill and ADR stay in sync by construction.
-- Good: six-outcome triage gives Discussions and Issues a consistent vocabulary across phases (see forthcoming ADR 0007 on routing).
+- Good: six-outcome triage gives Discussions and Issues a consistent vocabulary across phases (see [ADR 0007](0007-github-function-routing.md) on routing).
 - Good: pattern-based non-convergence detection is more sensitive than a round cap — catches stuck loops earlier without terminating productive ones.
 - Good: other-bots handling collapses into the same taxonomy, so ScaleForce doesn't need a separate code path per bot.
 - Bad: authoritative loop definition lives in a different repo (`ai-skill-builder-library`). If the skill moves or is renamed, this ADR needs an update. Mitigation: reference by skill name, not path, and keep the name stable.

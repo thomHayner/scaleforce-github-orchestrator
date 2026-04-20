@@ -162,6 +162,6 @@ No handler in the schema can issue an `APPROVED` review. Branch protection appro
 ## More Information
 
 - [ADR 0003](0003-bot-identity-separation.md) — identity separation; mechanism-rail handler names map to these logins.
-- [ADR 0005](0005-copilot-reviewer-loop.md) — the `pr-reviews[copilot]` loop contract (terminal-state invariant, triage taxonomy, non-convergence rule).
-- [`copilot-recursive-review`](https://github.com/thomHayner/ai-skill-builder-library) skill — authoritative definition of the `pr-reviews[copilot]` mechanism.
+- [ADR 0005](0005-copilot-reviewer-loop.md) — the Copilot PR-reviews loop contract (terminal-state invariant, triage taxonomy, non-convergence rule) — invoked when `copilot` appears in the `orchestrator.slots.pr-reviews` list.
+- [`copilot-recursive-review`](https://github.com/thomHayner/ai-skill-builder-library) skill — authoritative definition of the loop that runs for a `copilot` entry in `orchestrator.slots.pr-reviews`.
 - [ADR 0002](0002-use-feature-dev-main-branch-model.md) — branch model; clarifies that human approval is the merge gate regardless of routing.
