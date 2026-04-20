@@ -7,7 +7,7 @@
 
 ## Context and Problem Statement
 
-`scaleforce[bot]` orchestrates PR review. GitHub Copilot (login `copilot-pull-request-reviewer[bot]`) is the only AI that can be assigned via `requested_reviewers` — empirically verified; GitHub silently rejects every other App. Copilot is also restricted to `COMMENTED` reviews by GitHub/Microsoft, so branch protection approvals are never satisfied by a bot (confirmed in GitHub's [About protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) — only eligible human reviewers can issue counting `APPROVED` reviews).
+`scaleforce[bot]` orchestrates PR review. GitHub Copilot (login `copilot-pull-request-reviewer[bot]`) is the only AI that can be assigned via `requested_reviewers` — empirically verified; GitHub silently rejects every other App. Copilot is also restricted to `COMMENTED` reviews by GitHub/Microsoft, so branch protection approvals are never satisfied by a bot (confirmed in GitHub's [About protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) — only eligible human reviewers can issue `APPROVED` reviews that count toward branch protection).
 
 We need explicit rules for the loop `scaleforce[bot]` will drive when Copilot reviews a PR:
 

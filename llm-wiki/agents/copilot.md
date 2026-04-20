@@ -43,7 +43,7 @@ The loop is defined authoritatively by the [`copilot-recursive-review`](https://
 - Zero unresolved Copilot threads on the current HEAD after a fresh review.
 - `HUMAN-PAUSE` raised this round.
 - Maintainer says stop / takes over.
-- **Same class of comment recurs for 3 rounds with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve (replaces the earlier 7-iteration hard cap; pattern detection beats counter-based).
+- **Same class of thread recurs for 3 rounds with no progress** → surface as `HUMAN-PAUSE` and stop. This is the non-convergence safety valve (replaces the earlier 7-iteration hard cap; pattern detection beats counter-based).
 
 ### Other bots on the same PR
 

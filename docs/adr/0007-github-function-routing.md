@@ -157,7 +157,7 @@ No handler in the schema can issue an `APPROVED` review. Branch protection appro
 ### Option C: cascade (chosen)
 - Good: combines A's brevity for homogeneous cases with B's expressiveness for mixed ones.
 - Good: mirrors how design tokens and CSS custom properties work — familiar mental model.
-- Bad: users have to know the default-plus-override pattern. Mitigated by the config being small (7 slots).
+- Bad: users have to know the default-plus-override pattern. Mitigated by the config being small (6 slots).
 
 ## More Information
 
