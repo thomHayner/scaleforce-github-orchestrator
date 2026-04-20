@@ -8,7 +8,8 @@
 |---|---|---|
 | `scaleforce[bot]` | Orchestration: triage, routing, PR mediation | This repo's Probot. Configure at https://github.com/settings/apps/scaleforce |
 | `claude[bot]` | Substantive AI: code, deep PR review | Install [Claude GitHub App](https://github.com/apps/claude) |
-| `copilot-swe-agent[bot]` | Parallel coding agent | Enable Copilot coding agent in repo settings |
+| `copilot-pull-request-reviewer[bot]` | GitHub Copilot PR reviewer (active). `scaleforce[bot]` re-requests reviews from this identity until clean. | Assign Copilot as a reviewer on a PR; requires a Copilot subscription. |
+| `copilot-swe-agent[bot]` | Copilot coding agent (documented, not the primary workflow) | Enable Copilot coding agent in repo settings |
 
 ## The maintainer's git config — never let agents change
 
