@@ -31,13 +31,54 @@ Chosen: **Multiple GitHub Apps**, each with its own role and identity:
 |---|---|---|
 | `scaleforce[bot]` | This repo's Probot | Orchestration: triage, routing, PR-thread mediation |
 | `claude[bot]` | Anthropic's Claude GitHub App | Substantive AI work: code, deep PR review, spec drafting |
-| `copilot-swe-agent[bot]` | GitHub Copilot coding agent | Parallel coding agent |
+| `copilot-pull-request-reviewer[bot]` | GitHub Copilot (reviewer role) | PR reviewer; `scaleforce[bot]` requests and re-requests reviews until clean. Active use case. |
+| `copilot-swe-agent[bot]` | GitHub Copilot (coding-agent role) | Parallel coding agent. Documented but not the primary workflow. |
 
 Local Claude Code CLI does **not** post on GitHub under the maintainer's identity. Either:
 1. Route GitHub-side activity through the Claude App, or
 2. Authenticate Claude's local `gh` with a separate token belonging to `claude[bot]`.
 
 Commits are always authored by the maintainer's git identity with `Co-Authored-By: Claude <noreply@anthropic.com>` trailers.
+
+### Actor provenance invariant
+
+The identity table above is not descriptive — it is an **operational invariant**. Every GitHub write that is part of orchestration work must be attributable, at the GitHub level, to the identity that owns that work:
+
+- **Orchestration actions run under `scaleforce[bot]`.** Review requests and re-requests, triage replies to review comments, thread resolutions (`resolveReviewThread`), Discussion creation, Issue creation/updates from triage, labels, sticky comments for loop state — all of these are `scaleforce[bot]`'s work and must post under its installation token, never a maintainer PAT or any other identity.
+- **AI code work runs under `claude[bot]`** (or whichever code-agent identity authored it), not under the maintainer. See the rule above about local `gh` auth.
+- **Reviewer output runs under the reviewer's identity.** Copilot's inline comments are `copilot-pull-request-reviewer[bot]`'s; pre-PR review output from a skill is attributed to the corresponding handler identity, not to whoever ran the skill.
+- **The maintainer's identity is reserved for explicit human decisions** — branch-protection approvals, merges, overrides, and judgment calls that deliberately override automation. If a human token is posting routine orchestration output, that is a governance bug to fix, not an acceptable shortcut.
+
+**Why it matters.** The whole identity table is worthless if anyone can post under the wrong name. A `thomHayner`-authored triage reply is indistinguishable, in a thread, from a real maintainer decision — it silently steals the audit trail that [ADR 0003](0003-bot-identity-separation.md) exists to protect.
+
+**Interim exception.** While `scaleforce[bot]` is not yet deployed, orchestration actions taken manually by the maintainer (e.g., running `gh` auth'd as the maintainer to post triage replies) are a known temporary gap. These actions should be migrated to `scaleforce[bot]` the moment the App is live. They are not a precedent.
+
+**How to enforce.** Before merging code that performs a GitHub write, ask: *which identity does this post under at runtime?* If the answer is "whoever ran the script," the code is wrong. `scaleforce[bot]` writes use the Probot / Octokit client built from its installation token; Claude writes use the Claude App's token; the maintainer PAT is not a fallback.
+
+### Tree-level attribution (upward identity)
+
+*Added 2026-04-22 alongside [ADR 0008](0008-engineering-branch-scaleforce-instrument.md).*
+
+The identity table above is a **GitHub-level** invariant: every GitHub write is attributable to the GitHub App / account that performed it. Once the agency tree has an Engineering branch directing `scaleforce[bot]` and a honeycrisp router consuming its events ([ADR 0008](0008-engineering-branch-scaleforce-instrument.md)), a second layer applies:
+
+**The upward event log attributes reasoning to the reasoner, not to the instrument that executed.**
+
+Concretely:
+
+- When Engineering directs `scaleforce[bot]` to fan out across four repos, the GitHub post is `scaleforce[bot]`'s (GitHub layer) but the [ADR 0006](0006-llm-observability.md) event-log entry records Engineering as the `decided_by` (tree layer). Both attributions are required; neither stands alone.
+- When `scaleforce[bot]` makes a decision within its own deterministic scope (apply a routing-table lookup, enforce a turn-taking bound, emit a notification-gap sweep result), `decided_by` is `scaleforce` and `decided_under` is `engineering` (its branch).
+- When a narrow templated LLM call inside `scaleforce[bot]` classifies free text (see [ADR 0005 § Classifier boundary](0005-copilot-reviewer-loop.md#classifier-boundary)), `decided_by` is still `scaleforce` but `classifier` names the specific classifier template that was invoked, so the reasoning path is traceable.
+- `honeycrisp`'s summaries of `scaleforce[bot]` activity are attributed to `honeycrisp`, not paraphrased as if they came from `scaleforce`. When honeycrisp posts summary output on GitHub (rare; usually via Engineering), the GitHub-layer write is still whoever holds the installation token for that write — the attribution layers don't collapse into each other.
+- The maintainer PAT is never a fallback at either layer. An event logged as `decided_by: maintainer` corresponds to an explicit human decision, not to "the script happened to be running under a PAT."
+
+**Event-schema implication.** [ADR 0006](0006-llm-observability.md)'s `scaleforce.event.v1` schema already carries `actor` (GitHub-layer). Add two tree-layer fields:
+
+- `decided_by` — the tree-level identity whose reasoning produced this action. Values: `engineering`, `honeycrisp`, `honey-claw`, `scaleforce` (for decisions inside its own deterministic scope), `maintainer`.
+- `decided_under` — the branch whose instrument or sub-concern executed. Usually `engineering` for scaleforce events; clarifies which branch "owns" the action for cross-branch audits.
+
+Existing consumers of the v1 schema can ignore these fields until they matter; the addition is backward-compatible.
+
+**Why it matters.** Without upward attribution, a honeycrisp that consumes the event log can't tell whether a decision was Engineering's, scaleforce's, or a fallback. That collapses the same audit-trail invariant at the tree level that the GitHub-layer invariant protects at the GitHub level. The whole point of having reasoning in one place and execution in another is to keep the two separately inspectable.
 
 ### Consequences
 

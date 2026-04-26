@@ -9,7 +9,10 @@ This repo runs an "AI agency" pattern with multiple distinct identities. **Knowi
 - **You (Claude)** post on GitHub as `claude[bot]` when invoked via the Claude GitHub App / Claude Code Action. Locally, you may shell to `gh` under whatever account is authenticated — verify with `gh auth status` before posting anything.
 - **The maintainer** is `thomHayner`. They are a human; their comments and reviews are theirs alone.
 - **The orchestration bot** (this repo's Probot) is `scaleforce[bot]`. It handles triage, routing, and PR-thread mediation.
-- **Other agents**: `copilot-swe-agent[bot]`, `dependabot[bot]`, `vercel[bot]`, etc.
+- **GitHub Copilot** surfaces under two bot logins depending on role:
+  - `copilot-pull-request-reviewer[bot]` — Copilot reviewing a PR. This is the active use case; `scaleforce[bot]` requests and re-requests reviews from this identity until it returns clean.
+  - `copilot-swe-agent[bot]` — Copilot's coding agent when it authors a PR. Available but not the primary workflow here.
+- **Other agents**: `dependabot[bot]`, `vercel[bot]`, etc.
 
 ### Comment authoring rules
 
