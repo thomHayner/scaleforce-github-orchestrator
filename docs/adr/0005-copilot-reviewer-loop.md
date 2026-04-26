@@ -90,6 +90,38 @@ Probot is stateless across events. The loop's state — round number, HEAD SHA, 
 
 Critically: "zero unresolved threads on this HEAD" is not inferable from the `pull_request_review` webhook payload — that event carries neither inline-comment counts nor thread resolution state. `scaleforce[bot]` must compute it by fetching the review's inline comments (`GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments`) plus the PR's review threads via the GraphQL `pullRequest.reviewThreads` field (for `isResolved`), then filtering to threads tied to the current HEAD SHA.
 
+### Classifier boundary
+
+*Added 2026-04-22 alongside [ADR 0008](0008-engineering-branch-scaleforce-instrument.md).*
+
+Triaging a Copilot thread into FIX / REJECT / DISCUSS / DEFER / NOISE / HUMAN-PAUSE requires reading comprehension on free text — the thread is prose, not a labeled payload. This is the **one place** inside `scaleforce[bot]`'s loop where a narrow templated LLM call is permitted. [ADR 0008](0008-engineering-branch-scaleforce-instrument.md) establishes that scaleforce is Engineering's instrument and that reasoning belongs to Engineering; this section names the exception.
+
+**What is permitted inside scaleforce:**
+
+- **Structured classification of free text into a fixed taxonomy.** Triage (one of six outcomes), scope detection ("does this thread mention a file outside this repo?"), intent extraction from `@scaleforce` directives, thread-class identification for non-convergence detection. Inputs are bounded (one thread at a time; a configurable prose-length cap), outputs are structured (an enum + a short rationale), and the model has no authority to take actions — it returns a label, scaleforce decides what to do with it.
+- **Summarization of a thread to assemble a context packet for a handler.** Compressing a Copilot thread (possibly with its inline-comment siblings) into a single paragraph that a handler like `claude[bot]` receives alongside the original payload. Summarization is a classification-adjacent task: it does not invent content, does not decide, and its output is auditable against the source.
+- **Non-convergence pattern detection.** Recognizing "the thread Copilot just raised is the same *class* as the one we FIXed two rounds ago" is a classification over two pieces of text. Permitted inside scaleforce; the decision to surface `HUMAN-PAUSE` flows from the classification plus the round count (which is a deterministic state field).
+
+**What is not permitted inside scaleforce — even if an LLM call would answer:**
+
+- Deciding *what* a FIX should be. scaleforce classifies a thread as FIX-worthy; the handler (claude[bot], a repo-wiki-agent, etc.) decides and applies the change.
+- Judging whether a REJECT is correct for this codebase. scaleforce can classify "this comment looks like a taste disagreement" (triage), but "we should reject because our convention says X" requires codebase knowledge and belongs to Engineering or the repo-wiki-agent.
+- Synthesizing across multiple threads or across repos. Fan-out yes; merge no. See [ADR 0009](0009-ordered-cross-repo-deliberation.md).
+- Choosing between legitimate conflicting positions. That is synthetic moderation and it is Engineering's.
+- Answering novel or ambiguous classifications where the classifier's confidence is low. In that case scaleforce escalates to Engineering (or the relevant repo-wiki-agent) rather than guessing — the output of the templated call includes a confidence field, and below a configured threshold the call returns `NEEDS_ENGINEERING` instead of a six-outcome label.
+
+**Operational constraints on permitted calls:**
+
+- **Templated**, with a fixed prompt + schema per classification task. No free-form prompts constructed at runtime from unbounded input.
+- **Bounded**, with explicit input-size caps. A thread longer than the cap is truncated around the latest comment with a note, or escalated if truncation would lose necessary context.
+- **Cacheable** by (prompt version, input hash). The same thread classified twice returns the same label unless the prompt version rolls.
+- **Auditable.** Every templated call logs an [ADR 0006](0006-llm-observability.md) event with the template name, input hash, output label, confidence, and classifier version.
+- **Deterministic fallback.** Every template has a deterministic default for total failure (network error, model returns nothing): typically escalate to Engineering or surface `HUMAN-PAUSE`, never silently pick a label.
+
+**Tripwire.** A classifier template that starts returning free-form text, taking actions on its own, or producing outputs outside its declared schema is a drift signal and should be rolled back.
+
+The charter's shorthand — "reading comprehension on free text → narrow templated LLM call inside scaleforce; codebase reasoning → Engineering" — is the principle. This section is the operational detail.
+
 ### Consequences
 
 - Good: aligns with working implementation rather than reinventing it. Skill and ADR stay in sync by construction.
