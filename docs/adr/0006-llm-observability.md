@@ -45,6 +45,8 @@ One JSON line per orchestration event, stdout:
   "event": "copilot_review_received",
   "pr": "thomHayner/AIHawk_Birdwatcher#42",
   "actor": "copilot-pull-request-reviewer[bot]",
+  "decided_by": "scaleforce",
+  "decided_under": "engineering",
   "loop_iteration": 3,
   "outcome": "comments_present",
   "comment_count": 2,
@@ -53,12 +55,15 @@ One JSON line per orchestration event, stdout:
 }
 ```
 
+`actor` is the GitHub-layer identity that performed the write (see [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant)). `decided_by` and `decided_under` are the tree-layer attribution from [ADR 0003 § Tree-level attribution](0003-bot-identity-separation.md#tree-level-attribution-upward-identity); allowed `decided_by` values are `engineering`, `honeycrisp`, `honey-claw`, `scaleforce`, `maintainer`, and `decided_under` names the branch whose instrument or sub-concern executed.
+
 Event types to cover at minimum:
 - `review_requested` — `scaleforce[bot]` asked Copilot to review.
 - `copilot_review_received` — review came back; carries `comment_count` and loop iteration.
 - `author_pinged` / `maintainer_escalated` — routing decisions from [ADR 0005](0005-copilot-reviewer-loop.md).
-- `loop_exited` — zero-comments exit, with total iterations.
-- `loop_capped` — iteration 7 reached; human breakpoint.
+- `loop_exited` — zero unresolved review threads remain on the current HEAD; carries total iterations.
+- `loop_non_converged` — [ADR 0005](0005-copilot-reviewer-loop.md#termination)'s pattern-based non-convergence detected (same class of thread for 3 rounds); surfaces as `HUMAN-PAUSE`.
+- `loop_runaway_backstop` — ~25-round hard backstop reached for an unattended loop. Tripwire, not a normal terminator; should almost never fire.
 
 Schema lives in the probot repo alongside the code that emits it. Bump `schema` field on breaking changes.
 
@@ -91,7 +96,7 @@ Schema lives in the probot repo alongside the code that emits it. Bump `schema` 
 
 ### Option C: do nothing
 - Good: zero work.
-- Bad: review-loop health is currently invisible; we won't notice pathological loops until the 7-iteration cap fires.
+- Bad: review-loop health is currently invisible; we won't notice pathological loops until [ADR 0005](0005-copilot-reviewer-loop.md#termination)'s non-convergence pattern forces `HUMAN-PAUSE`, or the ~25-round runaway backstop trips on an unattended loop.
 
 ### Option D: hybrid (chosen)
 - Good: does the cheap useful thing now; keeps the door open for the expensive useful thing when it's justified.

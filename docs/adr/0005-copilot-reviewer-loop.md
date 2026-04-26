@@ -42,10 +42,10 @@ Chosen: **Option B** — `scaleforce[bot]` implements the loop as defined by the
 2. Wait on a configurable polling cadence. The skill uses 270s by default, chosen to amortize its own runtime's prompt-cache reuse; the ScaleForce Probot will pick its own cadence based on polling cost, API-rate-limit headroom, and target review latency in its own stack — not coupled to any specific LLM provider's cache behavior.
 3. On each wake, fetch Copilot reviews matching the current HEAD. If none, wait again.
 4. When a matching review arrives, fetch its review threads for the current HEAD. Each thread — which may contain multiple inline comments — gets one of the six triage outcomes below.
-5. Apply FIXes (verified via the repo's lint/test/build), open Discussions / Issues for DISCUSS / DEFER, reply on every triaged thread, resolve terminal-state threads, commit, push.
-6. Re-request review on the new HEAD. Repeat.
+5. For **FIX**, dispatch the change to a code-authoring handler identity (e.g., `claude[bot]`, not `scaleforce[bot]`). The handler decides whether to apply the change, makes the code edits, verifies via the repo's lint/test/build, and authors and pushes the commit to the PR branch under its own identity. For **DISCUSS** / **DEFER**, `scaleforce[bot]` opens the Discussion / Issue. For every triaged thread, `scaleforce[bot]` posts the reply and resolves terminal-state threads.
+6. If a FIX commit produced a new HEAD, `scaleforce[bot]` re-requests review on that new HEAD. Repeat.
 
-All orchestration writes in this loop — the review request, per-thread triage replies, thread resolutions, Discussion and Issue creation — run under `scaleforce[bot]`'s installation token. The maintainer PAT is not a fallback. See [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant).
+All orchestration writes in this loop — the review request, per-thread triage replies, thread resolutions, Discussion and Issue creation — run under `scaleforce[bot]`'s installation token. The maintainer PAT is not a fallback. FIX code changes are *not* orchestration writes: they must be attributable to the code-authoring handler identity that made and pushed the commit, per [ADR 0003 § Actor provenance invariant](0003-bot-identity-separation.md#actor-provenance-invariant). scaleforce[bot] is the GitHub transport for a handler-authored change in the FIX path; it is never the code author.
 
 ### The terminal-state invariant
 
