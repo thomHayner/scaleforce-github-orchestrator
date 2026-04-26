@@ -1,15 +1,11 @@
-import OpenAi from 'openai';
-import type { OpenAI } from 'openai/src/index.js';
-import type { Stream } from 'openai/streaming.mjs';
-import { z } from "zod";
-import { zodFunction } from "openai/helpers/zod";
+import { complete } from "../llm/index.js";
+import type { LlmMessage, LlmTool } from "../llm/index.js";
 import {
   primaryLabelList,
   addLabel,
-  fetchRepo as fetchTemplate
 } from '../utils/issuesUtils.js';
 
-const issuesAiClient = new OpenAi({ apiKey: process.env.OPENAI_API_KEY });
+const HANDLER = "issuesai";
 
 const systemPrompt:string = `\
   You are an intelligent Software Engineer working as a GitHub Repository Maintainer on an open source project.\n
@@ -29,7 +25,7 @@ const taskPrompt:string = `\
     - Analyze new issues and triage them.\n
     - If an issue is missing key information, you will ask follow up questions.\n
     - Apply an appropriate primary label to new issues, some issues may have additional secondary labels.\n
-    - Create an official Issue Report based on a template that corresponds with the primary label.\n 
+    - Create an official Issue Report based on a template that corresponds with the primary label.\n
     - Compare new issues to existing issues (both open and closed) to determine if the new issue is a duplicate.\n
     - If a new issue is a duplicate you will add the secondary label "duplicate" and reference the new issue with a comment in the existing issue's conversation.\n
     - Monitor issues and comments for inappropriate language; if an issue or comment contains questionable content you will hide the message from public view and notify human moderators for follow up.\n
@@ -61,76 +57,77 @@ const taskPrompt:string = `\
   3. Call the getReportTemplate function to get the reportTemplate that corresponds with the primaryLabel.\n
   4. Compare the issue comments and the reportTemplate to determine if you have enough information for completing the entire reportTemplate.\n
     - If there is enough information in the issue comments you should respond with an officialReport that conforms to the reportTemplate, otherwise, ask follow up questions until you have all of the necessary information for generating the officialReport.
-  5. After picking a primaryLabel and generating an officialReport, 
+  5. After picking a primaryLabel and generating an officialReport,
 `
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const addPrimaryLabelParams = z.object({
-  primaryLabel: z.enum([primaryLabelList[0], ...primaryLabelList]).describe("The Primary Label to apply to the Issue."),
-});
+const addPrimaryLabelTool: LlmTool = {
+  name: "addLabel",
+  description: "Apply the chosen primary label to the issue.",
+  parameters: {
+    type: "object",
+    additionalProperties: false,
+    required: ["primaryLabel"],
+    properties: {
+      primaryLabel: {
+        type: "string",
+        enum: [...primaryLabelList],
+        description: "The Primary Label to apply to the Issue.",
+      },
+    },
+  },
+};
 
-const addPrimaryLabelTools = [
-  zodFunction({ name: "addLabel", parameters: addPrimaryLabelParams }),
-];
-
-// const reportTemplate = z.object({
-//   name: z.enum([primaryLabelList[0], ...primaryLabelList]).describe("The template for the Official Report that corresponds with primaryLabel."),
-// });
-// const generateReportTools = [
-//   zodFunction({ name: "fetchTemplate", parameters: addPrimaryLabelParams }),
-// ];
+function buildBaseMessages(context: any, extra: any[]): LlmMessage[] {
+  const issue = context.payload.issue;
+  const labels = issue.labels && issue.labels.length > 0
+    ? 'Labels: ' + issue.labels.map((n: any) => n.name + ', ') + ' '
+    : '';
+  return [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: taskPrompt },
+    { role: 'user', content: `${labels}${issue.title}: ${issue.body}` },
+    ...extra,
+  ];
+}
 
 export async function primaryLabelCompletion(context:any, messageList:any) {
-  const issue = context.payload.issue;
+  const messages = buildBaseMessages(context, messageList);
 
-  // Give the AI it's prompts and the new Issue:
-  const params:OpenAI.Chat.ChatCompletionCreateParams = {
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: taskPrompt,
-      },
-      {
-        role: 'user',
-        content: `${(issue.labels && issue.labels.length > 0) ? 'Labels: ' + issue.labels.map((n:any) => n.name + ', ') + ' ' : ''}${issue.title}: ${issue.body}`,
-      },
-      ...messageList
-    ],
-    tools: addPrimaryLabelTools,
-  };
-  const chatCompletion:Stream<OpenAi.Chat.Completions.ChatCompletionChunk> | OpenAi.Chat.Completions.ChatCompletion = await issuesAiClient.chat.completions.create(params);
-  let aiResponse:string = "";
+  const first = await complete(
+    {
+      model: 'gpt-4o',
+      messages,
+      tools: [addPrimaryLabelTool],
+    },
+    { handler: HANDLER },
+  );
 
-  // If the AI can decide on a Primary Label
-  if (chatCompletion.choices[0].finish_reason === "tool_calls" && chatCompletion.choices[0].message.tool_calls?.[0].function) {
-    const applyPrimaryLabelCall:OpenAi.Chat.Completions.ChatCompletionMessageToolCall = chatCompletion.choices[0].message.tool_calls[0];
-    const args:any = await JSON.parse(applyPrimaryLabelCall.function.arguments);
-    const primaryLabel:string = args.primaryLabel+"";
-    const function_call_result_message:any = {
-      role: "tool",
-      content: JSON.stringify({
-        primaryLabel: primaryLabel
-      }),
-      tool_call_id: chatCompletion.choices[0].message.tool_calls[0].id
-    };
+  let aiResponse = "";
 
-    // First, apply the Primary Label
+  if (first.finishReason === "tool_calls" && first.toolCalls.length > 0) {
+    const call = first.toolCalls[0];
+    const args = JSON.parse(call.arguments);
+    const primaryLabel: string = String(args.primaryLabel);
+
     await addLabel(primaryLabel, context);
-    
-    // Then 
-    params.messages.push(chatCompletion.choices[0].message);
-    params.messages.push(function_call_result_message);
 
-    // TODO: make this look up the file
-    params.messages.push({
-      role: "user",
-      content: `Use the following .yml template to generate an official report:\n
+    const followUp: LlmMessage[] = [
+      ...messages,
+      {
+        role: 'assistant',
+        content: first.content,
+        toolCalls: first.toolCalls,
+      },
+      {
+        role: 'tool',
+        toolCallId: call.id,
+        content: JSON.stringify({ primaryLabel }),
+      },
+      {
+        role: 'user',
+        content: `Use the following .yml template to generate an official report:\n
                 name: Bug report\n
                 description: Report a bug or an issue that isn't working as expected.\n
                 title: "[BUG]: <Provide a clear, descriptive title>"\n
@@ -221,109 +218,68 @@ export async function primaryLabelCompletion(context:any, messageList:any) {
                       label: Additional context\n
                       description: Add any other context about the problem here.\n
                       placeholder: "Any additional information..."\n
-      `
-    });
+      `,
+      },
+    ];
 
-    const nextChatCompletion: OpenAi.Chat.Completions.ChatCompletion = await issuesAiClient.chat.completions.create(params);
-    aiResponse += nextChatCompletion.choices[0].message.content;
-
-  // If it can not decide on a Primary Label
+    const next = await complete(
+      { model: 'gpt-4o', messages: followUp, tools: [addPrimaryLabelTool] },
+      { handler: HANDLER },
+    );
+    aiResponse += next.content ?? "";
   } else {
-    // Return the message with additional questions
-    aiResponse += chatCompletion.choices[0].message.content;
-  };
+    aiResponse += first.content ?? "";
+  }
 
-  return aiResponse
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export async function issueReportCompletion(context:any | any, messages:any, primaryLabel?:string, template?:any) {
-  const issue = context.payload.issue;
-  const params:OpenAI.Chat.ChatCompletionCreateParams = {
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: taskPrompt,
-      },
-      {
-        role: 'user',
-        content: `${(issue.labels && issue.labels.length > 0) ? 'Labels: ' + issue.labels.map((n:any) => n.name + ', ') + ' ' : ''}${issue.title}: ${issue.body}`,
-      },
-      ...messages
-    ],
-    model: 'gpt-4o-mini',
-  };
-  const chatCompletion:OpenAI.Chat.ChatCompletion = await issuesAiClient.chat.completions.create(params);
-  const aiResponse:string = chatCompletion.choices.map(n=>n.message.content).join(`\n`);
-  return aiResponse
-  
-  // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
-  // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
-};
+  return aiResponse;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export async function issueDuplicateCheckCompletion(context:any | any, messages:any) {
-  const issue = context.payload.issue;
-  const params:OpenAI.Chat.ChatCompletionCreateParams = {
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: taskPrompt,
-      },
-      {
-        role: 'user',
-        content: `${issue.labels.length > 0 ? 'Labels: ' + issue.labels.map((n:any) => n.name + ', ') + ' ' : ''}${issue.title}: ${issue.body}`,
-      },
-      ...messages
-    ],
-    model: 'gpt-4o',
-  };
-  const chatCompletion:OpenAI.Chat.ChatCompletion = await issuesAiClient.chat.completions.create(params);
-  const aiResponse:string = chatCompletion.choices.map(n=>n.message.content).join(`\n`);
-  return aiResponse
+export async function issueReportCompletion(context:any, messages:any, _primaryLabel?:string, _template?:any) {
+  const result = await complete(
+    {
+      model: 'gpt-4o-mini',
+      messages: buildBaseMessages(context, messages),
+    },
+    { handler: HANDLER },
+  );
+  return result.content ?? "";
 
   // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
   // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
-};
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export async function issueCommentCompletion(context:any | any, messages:any) {
-  const issue = context.payload.issue;
-  const params:OpenAI.Chat.ChatCompletionCreateParams = {
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: taskPrompt,
-      },
-      {
-        role: 'user',
-        content: `${issue.labels.length > 0 ? 'Labels: ' + issue.labels.map((n:any) => n.name + ', ') + ' ' : ''}${issue.title}: ${issue.body}`,
-      },
-      ...messages
-    ],
-    model: 'gpt-4o',
-  };
-  const chatCompletion:OpenAI.Chat.ChatCompletion = await issuesAiClient.chat.completions.create(params);
-  const aiResponse:string = chatCompletion.choices.map(n=>n.message.content).join(`\n`);
-  return aiResponse
+export async function issueDuplicateCheckCompletion(context:any, messages:any) {
+  const result = await complete(
+    {
+      model: 'gpt-4o',
+      messages: buildBaseMessages(context, messages),
+    },
+    { handler: HANDLER },
+  );
+  return result.content ?? "";
 
   // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
   // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
-};
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export async function issueCommentCompletion(context:any, messages:any) {
+  const result = await complete(
+    {
+      model: 'gpt-4o',
+      messages: buildBaseMessages(context, messages),
+    },
+    { handler: HANDLER },
+  );
+  return result.content ?? "";
+
+  // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
+  // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
