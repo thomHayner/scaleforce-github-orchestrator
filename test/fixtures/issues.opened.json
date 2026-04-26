@@ -12,6 +12,9 @@
       "login": "hiimbex"
     }
   },
+  "sender": {
+    "login": "hiimbex"
+  },
   "installation": {
     "id": 2
   }
