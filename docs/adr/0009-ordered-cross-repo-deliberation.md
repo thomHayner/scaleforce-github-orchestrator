@@ -157,3 +157,7 @@ honeycrisp's view of an in-flight cross-repo deliberation is assembled entirely 
   - LLM-as-a-Judge (Zheng et al.): https://arxiv.org/abs/2306.05685
   - AutoGen AgentChat teams: https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/teams.html
   - CrewAI processes: https://docs.crewai.com/concepts/processes
+
+## Open research
+
+- **Robert's New Rules of Order (RNRO)** — research as a source of moderation strategies for the Phase-2 moderator pass and the mechanical-vs-synthetic split. Specifically: motion handling, amendment ordering, calling the question, and tabling rules may translate into deterministic mechanical-moderation primitives that scaleforce can apply without escalating to Engineering. Action: produce a follow-up note (or a successor ADR) mapping RNRO procedures onto this protocol's round/phase model before broadening mechanical-moderation scope.
