@@ -15,8 +15,12 @@ Direct `import OpenAI from "openai"` calls in handlers are forbidden because:
    constructs vendor SDK clients lazily — only when actually invoked.
 2. **Vendor lock-in.** Switching providers (or wiring a new one) should be
    config, not code.
-3. **Capability routing.** Handlers can ask for "any provider that supports
-   tool use" without naming one.
+3. **Capability checks.** Handlers can require capabilities such as tool use
+   without hard-coding SDK-specific logic; the portal validates the resolved
+   provider against `requireCapabilities` and falls back to `mock` if it
+   doesn't satisfy them. The portal does **not** currently search across
+   providers for one that satisfies the requirement — see
+   `findCapableProvider()` in `src/llm/index.ts` if you need that explicitly.
 
 ## Selecting a provider
 

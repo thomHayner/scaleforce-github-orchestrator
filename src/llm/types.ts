@@ -89,6 +89,6 @@ export interface CompleteOpts {
   handler?: string;
   /** Explicit provider override; bypasses handler lookup. */
   provider?: ProviderName;
-  /** Require these capabilities; fall back to mock if no configured provider satisfies them. */
+  /** Require these capabilities on the resolved provider; fall back to mock if it does not satisfy them. */
   requireCapabilities?: Partial<Capabilities>;
 }
