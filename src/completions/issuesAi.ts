@@ -54,10 +54,9 @@ const taskPrompt:string = `\
   1. Aanalyze the new issue.\n
     - If there is enough information in the issue comments you should pick an appropriate primaryLabel, otherwise, ask follow up questions until you can pick an appropriate primaryLabel.\n
   2. After you have picked a primaryLabel, call the addLabel function to add the primaryLabel to the issue.\n
-  3. Call the getReportTemplate function to get the reportTemplate that corresponds with the primaryLabel.\n
+  3. After you call addLabel, the runtime will reply with a user message containing the reportTemplate that corresponds with the primaryLabel. There is no separate getReportTemplate tool — wait for that message rather than trying to invoke a function.\n
   4. Compare the issue comments and the reportTemplate to determine if you have enough information for completing the entire reportTemplate.\n
     - If there is enough information in the issue comments you should respond with an officialReport that conforms to the reportTemplate, otherwise, ask follow up questions until you have all of the necessary information for generating the officialReport.
-  5. After picking a primaryLabel and generating an officialReport,
 `
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,7 +100,7 @@ export async function primaryLabelCompletion(context:any, messageList:any) {
       messages,
       tools: [addPrimaryLabelTool],
     },
-    { handler: HANDLER },
+    { handler: HANDLER, requireCapabilities: { toolUse: true } },
   );
 
   let aiResponse = "";
@@ -223,7 +222,7 @@ export async function primaryLabelCompletion(context:any, messageList:any) {
     ];
 
     const next = await complete(
-      { model: 'gpt-4o', messages: followUp, tools: [addPrimaryLabelTool] },
+      { model: 'gpt-4o', messages: followUp },
       { handler: HANDLER },
     );
     aiResponse += next.content ?? "";

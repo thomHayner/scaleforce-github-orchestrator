@@ -61,15 +61,18 @@ export const localProvider: LlmProvider = {
   isAvailable() {
     // Local servers don't expose a uniform health check, so availability is
     // gated on opt-in via env. Adapters self-report; the actual reachability
-    // check happens in complete().
-    return Boolean(process.env.LLM_LOCAL_BASE_URL || process.env.LLM_LOCAL_MODEL);
+    // check happens in complete(). Whitespace-only env values are treated as
+    // unset so a stray space doesn't silently route traffic to a default URL.
+    return Boolean(
+      process.env.LLM_LOCAL_BASE_URL?.trim() ||
+        process.env.LLM_LOCAL_MODEL?.trim(),
+    );
   },
   async complete(input: CompleteInput): Promise<CompleteOutput> {
-    const baseUrl = (process.env.LLM_LOCAL_BASE_URL ?? DEFAULT_BASE_URL).replace(
-      /\/$/,
-      "",
-    );
-    const model = input.model ?? process.env.LLM_LOCAL_MODEL ?? DEFAULT_MODEL;
+    const baseUrlEnv = process.env.LLM_LOCAL_BASE_URL?.trim();
+    const modelEnv = process.env.LLM_LOCAL_MODEL?.trim();
+    const baseUrl = (baseUrlEnv || DEFAULT_BASE_URL).replace(/\/$/, "");
+    const model = input.model ?? modelEnv ?? DEFAULT_MODEL;
     const body: Record<string, unknown> = {
       model,
       messages: toOpenAiCompatibleMessages(input.messages),
