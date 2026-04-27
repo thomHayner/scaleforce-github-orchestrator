@@ -96,7 +96,7 @@ if (result.finishReason === "tool_calls") {
 
 `opts` accepts:
 
-- `handler` — logical name looked up in `LLM_HANDLER_<NAME>`. Lowercased.
+- `handler` — logical name looked up in `LLM_HANDLER_<NAME>`. Normalized by lowercasing and stripping underscores/dashes, so `issuesai`, `issues_ai`, `issues-ai`, and `LLM_HANDLER_ISSUES_AI` all map to the same handler key.
 - `provider` — explicit override (`"openai"`, `"anthropic"`, ...). Bypasses handler lookup.
 - `requireCapabilities` — `Partial<Capabilities>`; falls back to `mock` if the resolved provider can't satisfy them.
 
