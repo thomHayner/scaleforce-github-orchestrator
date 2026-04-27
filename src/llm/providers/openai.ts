@@ -23,22 +23,36 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 // importing the portal — or any handler that uses it — never reaches for
 // OPENAI_API_KEY at module load. A missing key here only matters when this
 // adapter is actually selected and invoked.
+//
+// We cache the in-flight Promise (not just the resolved client) so that
+// concurrent webhook handlers racing on first init don't each kick off a
+// separate `import("openai")` + `new OpenAI(...)`. On failure we clear
+// the promise so the next caller can retry.
 let cachedClient: unknown | null = null;
+let cachedClientPromise: Promise<any> | null = null;
 
 async function getClient(): Promise<any> {
   if (cachedClient) return cachedClient;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OpenAI provider selected but OPENAI_API_KEY is not set. " +
-        "Set the env var or change the provider via LLM_DEFAULT_PROVIDER " +
-        "(see docs/setup/llm-providers.md).",
-    );
-  }
-  const mod = await import("openai");
-  const OpenAI = (mod as any).default ?? (mod as any).OpenAI;
-  cachedClient = new OpenAI({ apiKey });
-  return cachedClient;
+  if (cachedClientPromise) return cachedClientPromise;
+  cachedClientPromise = (async () => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "OpenAI provider selected but OPENAI_API_KEY is not set. " +
+          "Set the env var or change the provider via LLM_DEFAULT_PROVIDER " +
+          "(see docs/setup/llm-providers.md).",
+      );
+    }
+    const mod = await import("openai");
+    const OpenAI = (mod as any).default ?? (mod as any).OpenAI;
+    const client = new OpenAI({ apiKey });
+    cachedClient = client;
+    return client;
+  })().catch((error) => {
+    cachedClientPromise = null;
+    throw error;
+  });
+  return cachedClientPromise;
 }
 
 function toOpenAiMessages(messages: LlmMessage[]): any[] {
