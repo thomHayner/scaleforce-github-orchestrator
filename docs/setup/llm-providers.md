@@ -37,7 +37,7 @@ matters in tests, since CI/prod sets the key explicitly.
 |---|---|---|---|
 | `openai` | wired | `OPENAI_API_KEY` | Lazy SDK init via `import("openai")`. |
 | `anthropic` | wired | `ANTHROPIC_API_KEY` | Implemented against the Messages REST API to avoid an SDK dep. |
-| `local` | wired | `LLM_LOCAL_BASE_URL` (default `http://127.0.0.1:11434/v1`), `LLM_LOCAL_MODEL` (default `llama3.1`) | Any OpenAI-compatible server: Ollama (with `/v1`), llama.cpp `--api`, LM Studio, vLLM. Capability flag `toolUse` is conservatively `false`. |
+| `local` | wired | `LLM_LOCAL_BASE_URL` (default `http://127.0.0.1:11434/v1`), `LLM_LOCAL_MODEL` (default `llama3.1`) | Any OpenAI-compatible server: Ollama (with `/v1`), llama.cpp `--api`, LM Studio, vLLM. **Opt-in:** at least one of these env vars must be set for `isAvailable()` to return true — otherwise the portal falls back to `mock` even when `LLM_DEFAULT_PROVIDER=local`. The defaults above only kick in once you've opted in. Capability flag `toolUse` is conservatively `false`. |
 | `grok` | stub | `XAI_API_KEY` | Throws on use; xAI exposes an OpenAI-compatible endpoint at `https://api.x.ai/v1` — wire when first handler targets it. |
 | `v0` | stub | `V0_API_KEY` | Throws on use; v0's chat completions endpoint at `https://api.v0.dev/v1`. |
 | `mock` | always available | — | Deterministic placeholder. The default for tests. |

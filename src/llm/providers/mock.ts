@@ -5,10 +5,15 @@ import type {
   LlmProvider,
 } from "../types.js";
 
+// Mock returns no tool calls (see complete() below — toolCalls is always []).
+// Reporting toolUse:false keeps capability routing honest: findCapableProvider
+// won't claim mock satisfies a toolUse:true requirement. resolveProvider still
+// falls back to mock unconditionally when nothing else is available, so this
+// is about diagnostic accuracy, not routing behavior.
 const capabilities: Capabilities = {
   streaming: false,
   structuredOutput: false,
-  toolUse: true,
+  toolUse: false,
   vision: false,
   contextWindow: 0,
 };
