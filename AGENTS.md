@@ -24,6 +24,7 @@ Agents have distinct identities **on purpose**. Do not impersonate the maintaine
 5. **One logical change per PR.** Refactors separate from features.
 6. **Read `docs/` before starting nontrivial work**: vision → roadmap → specs → adr.
 7. **Update `llm-wiki/`** when you learn something durable that future agents will need (a non-obvious convention, an integration quirk, a decision rationale not yet in an ADR).
+8. **All LLM calls in handler code go through the portal at [`src/llm/`](src/llm/).** Handlers call `complete(input, opts)`; the portal selects an adapter from config (`LLM_DEFAULT_PROVIDER`, `LLM_HANDLER_<NAME>`) and falls back to a mock when nothing is configured. **Direct vendor SDK imports outside `src/llm/providers/` are a convention violation** — that includes `openai`, `@anthropic-ai/sdk`, etc. Adding a new provider is one adapter file under `src/llm/providers/` plus a registry line. See [`docs/setup/llm-providers.md`](docs/setup/llm-providers.md) and [ADR 0010](docs/adr/0010-llm-provider-portal.md).
 
 ## Where to find things
 

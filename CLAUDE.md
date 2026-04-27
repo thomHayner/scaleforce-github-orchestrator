@@ -52,6 +52,10 @@ Read in this order before starting nontrivial work:
 - For features: include a brief test plan even if tests are added.
 - One logical change per PR. Refactors and feature work go in separate PRs unless impossible.
 
+## LLM calls
+
+All LLM calls in handler code MUST go through the portal at [`src/llm/`](src/llm/). Direct vendor SDK imports (`import OpenAI from "openai"`, `import Anthropic from "@anthropic-ai/sdk"`, etc.) outside `src/llm/providers/` are a convention violation. The portal exposes a single `complete(input, opts)` function with config-driven provider selection; see [`docs/setup/llm-providers.md`](docs/setup/llm-providers.md) and [ADR 0010](docs/adr/0010-llm-provider-portal.md). The classifier-boundary discipline from [ADR 0005](docs/adr/0005-copilot-reviewer-loop.md#classifier-boundary) still applies — the portal is the transport, not a license to relax *what* a call is allowed to decide inside `scaleforce[bot]`.
+
 ## Things to avoid
 
 - Don't introduce new dependencies without a one-line justification in the PR body.

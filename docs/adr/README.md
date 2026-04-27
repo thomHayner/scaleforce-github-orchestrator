@@ -24,3 +24,4 @@ See [`template.md`](template.md) — copy it for new ADRs.
 - [0007](0007-github-function-routing.md) — GitHub function routing: cascading defaults with per-function overrides
 - [0008](0008-engineering-branch-scaleforce-instrument.md) — Engineering is the branch; scaleforce[bot] is its GitHub instrument
 - [0009](0009-ordered-cross-repo-deliberation.md) — Ordered cross-repo deliberation: turn-taking, convergence-or-pathology, mechanical vs synthetic moderation
+- [0010](0010-llm-provider-portal.md) — LLM provider portal: thin in-house adapter layer with config-driven selection and lazy SDK construction
