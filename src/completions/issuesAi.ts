@@ -82,7 +82,7 @@ const addPrimaryLabelTool: LlmTool = {
 function buildBaseMessages(context: any, extra: any[]): LlmMessage[] {
   const issue = context.payload.issue;
   const labels = issue.labels && issue.labels.length > 0
-    ? 'Labels: ' + issue.labels.map((n: any) => n.name + ', ') + ' '
+    ? 'Labels: ' + issue.labels.map((n: any) => n.name).join(', ') + ' '
     : '';
   return [
     { role: 'system', content: systemPrompt },

@@ -68,6 +68,11 @@ const myTool: LlmTool = {
 
 const result = await complete(
   {
+    // `model` is provider-specific. The id below is an OpenAI model — when
+    // routing to Anthropic / local / etc., either change this string or
+    // omit it entirely (each adapter falls back to its own DEFAULT_MODEL).
+    // Per-handler model selection is tracked separately; see the issue
+    // backlinked from the LLM portal ADR.
     model: "gpt-4o",
     messages: [
       { role: "system", content: "You are a triage agent." },
