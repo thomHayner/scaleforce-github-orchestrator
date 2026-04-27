@@ -20,7 +20,13 @@ const capabilities: Capabilities = {
   // than honestly declining. Flip to `true` once CompleteInput grows the field.
   structuredOutput: false,
   toolUse: true,
-  vision: true,
+  // OpenAI accepts image inputs, but the portal's LlmMessage only carries
+  // string content — there's no multimodal payload reaching this adapter,
+  // so advertising vision would let `requireCapabilities: { vision: true }`
+  // route here without anything actually attaching an image. Same reasoning
+  // as the structuredOutput note above. Flip to `true` once LlmMessage grows
+  // a multimodal content variant.
+  vision: false,
   contextWindow: 128_000,
 };
 

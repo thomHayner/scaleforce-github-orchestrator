@@ -51,7 +51,7 @@ const taskPrompt:string = `\
   \n
   ## Issue Intake Process
   The next message will contain a new issue. Follow these steps to complete the intake process:\n
-  1. Aanalyze the new issue.\n
+  1. Analyze the new issue.\n
     - If there is enough information in the issue comments you should pick an appropriate primaryLabel, otherwise, ask follow up questions until you can pick an appropriate primaryLabel.\n
   2. After you have picked a primaryLabel, call the addLabel function to add the primaryLabel to the issue.\n
   3. After you call addLabel, the runtime will reply with a user message containing the reportTemplate that corresponds with the primaryLabel. There is no separate getReportTemplate tool — wait for that message rather than trying to invoke a function.\n

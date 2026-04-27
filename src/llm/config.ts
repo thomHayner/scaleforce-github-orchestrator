@@ -20,13 +20,24 @@ function isProviderName(value: string): value is ProviderName {
   return (VALID_PROVIDERS as readonly string[]).includes(value);
 }
 
+/** Normalize a handler name for lookup: lowercase, with underscores and dashes
+ * stripped. So `LLM_HANDLER_ISSUES_AI`, `LLM_HANDLER_ISSUESAI`, and a caller
+ * passing `handler: "issues_ai"` or `handler: "issuesAi"` all resolve to the
+ * same key. Keep both sides of the lookup (config build + resolveProvider) in
+ * sync via this helper. */
+export function normalizeHandlerName(name: string): string {
+  return name.toLowerCase().replace(/[_-]/g, "");
+}
+
 /**
  * Resolve the portal config from environment variables.
  *
  * Recognized env vars:
  * - LLM_DEFAULT_PROVIDER — global default (e.g. "openai", "anthropic", "mock").
  * - LLM_HANDLER_<NAME>   — per-handler override (e.g. LLM_HANDLER_ISSUESAI=anthropic).
- *                          Names are uppercased; underscores allowed.
+ *                          Underscores and dashes in <NAME> are stripped at lookup
+ *                          time, so LLM_HANDLER_ISSUES_AI matches a caller passing
+ *                          `handler: "issuesai"` (or vice versa).
  *
  * If LLM_DEFAULT_PROVIDER is unset, the default is "mock" so module load and
  * tests succeed without any vendor key. Adapters self-report availability via
@@ -51,7 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): PortalConfig {
   const handlers: Record<string, ProviderName> = {};
   for (const [key, value] of Object.entries(env)) {
     if (!key.startsWith("LLM_HANDLER_") || !value) continue;
-    const handlerName = key.slice("LLM_HANDLER_".length).toLowerCase();
+    const handlerName = normalizeHandlerName(key.slice("LLM_HANDLER_".length));
     if (!handlerName) continue;
     const normalized = value.trim().toLowerCase();
     if (isProviderName(normalized)) {

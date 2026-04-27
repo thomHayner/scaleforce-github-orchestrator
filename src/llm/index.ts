@@ -1,4 +1,4 @@
-import { loadConfig, type PortalConfig } from "./config.js";
+import { loadConfig, normalizeHandlerName, type PortalConfig } from "./config.js";
 import { getProvider, listProviders } from "./registry.js";
 import type {
   Capabilities,
@@ -72,8 +72,9 @@ export function resolveProvider(opts: CompleteOpts = {}): LlmProvider {
   let chosen: ProviderName;
   if (opts.provider) {
     chosen = opts.provider;
-  } else if (opts.handler && cfg.handlers[opts.handler.toLowerCase()]) {
-    chosen = cfg.handlers[opts.handler.toLowerCase()]!;
+  } else if (opts.handler) {
+    const key = normalizeHandlerName(opts.handler);
+    chosen = cfg.handlers[key] ?? cfg.defaultProvider;
   } else {
     chosen = cfg.defaultProvider;
   }

@@ -19,7 +19,11 @@ const capabilities: Capabilities = {
   // field and this adapter wires it up.
   structuredOutput: false,
   toolUse: true,
-  vision: true,
+  // Anthropic accepts image inputs, but the portal's LlmMessage only carries
+  // string content — see the parallel notes in src/llm/providers/openai.ts.
+  // Flip to `true` once LlmMessage grows a multimodal content variant and
+  // this adapter wires it up.
+  vision: false,
   contextWindow: 200_000,
 };
 
