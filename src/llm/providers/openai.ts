@@ -35,10 +35,10 @@ async function getClient(): Promise<any> {
   if (cachedClient) return cachedClient;
   if (cachedClientPromise) return cachedClientPromise;
   cachedClientPromise = (async () => {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
       throw new Error(
-        "OpenAI provider selected but OPENAI_API_KEY is not set. " +
+        "OpenAI provider selected but OPENAI_API_KEY is missing or empty. " +
           "Set the env var or change the provider via LLM_DEFAULT_PROVIDER " +
           "(see docs/setup/llm-providers.md).",
       );
@@ -113,7 +113,7 @@ export const openaiProvider: LlmProvider = {
   name: "openai",
   capabilities,
   isAvailable() {
-    return Boolean(process.env.OPENAI_API_KEY);
+    return Boolean(process.env.OPENAI_API_KEY?.trim());
   },
   async complete(input: CompleteInput): Promise<CompleteOutput> {
     const client = await getClient();

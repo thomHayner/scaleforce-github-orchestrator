@@ -116,13 +116,13 @@ export const anthropicProvider: LlmProvider = {
   name: "anthropic",
   capabilities,
   isAvailable() {
-    return Boolean(process.env.ANTHROPIC_API_KEY);
+    return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
   },
   async complete(input: CompleteInput): Promise<CompleteOutput> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
     if (!apiKey) {
       throw new Error(
-        "Anthropic provider selected but ANTHROPIC_API_KEY is not set. " +
+        "Anthropic provider selected but ANTHROPIC_API_KEY is missing or empty. " +
           "Set the env var or change the provider via LLM_DEFAULT_PROVIDER " +
           "(see docs/setup/llm-providers.md).",
       );

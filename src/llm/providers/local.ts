@@ -77,7 +77,8 @@ export const localProvider: LlmProvider = {
     if (input.temperature !== undefined) body.temperature = input.temperature;
     if (input.maxTokens !== undefined) body.max_tokens = input.maxTokens;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const url = `${baseUrl}/chat/completions`;
+    const response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -85,7 +86,7 @@ export const localProvider: LlmProvider = {
     if (!response.ok) {
       const text = await response.text();
       throw new Error(
-        `Local LLM error ${response.status} from ${baseUrl}: ${text.slice(0, 500)}`,
+        `Local LLM error ${response.status} from ${url}: ${text.slice(0, 500)}`,
       );
     }
     const data: any = await response.json();
