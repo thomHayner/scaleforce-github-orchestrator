@@ -44,7 +44,7 @@ export async function fetchRepo(context:any) {
 
 // Applies a Label to an Issue
 export async function addLabel(label: string, context:any) {
-  context.octokit.issues.addLabels(
+  return context.octokit.issues.addLabels(
     context.issue({
       labels: [label],
     })
@@ -53,7 +53,7 @@ export async function addLabel(label: string, context:any) {
 
 // Removes a Label to an Issue
 export async function removeLabel(label: string, context:any) {
-  context.octokit.issues.removeLabel(
+  return context.octokit.issues.removeLabel(
     context.issue({
       labels: [label],
     })
