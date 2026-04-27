@@ -246,8 +246,8 @@ export async function issueReportCompletion(context:any, messages:any, _primaryL
   );
   return result.content ?? "";
 
-  // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
-  // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
+  // There needs to be an abort here, something that checks if the conversation should be over and stops responding
+  // There should also be something that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -262,8 +262,8 @@ export async function issueDuplicateCheckCompletion(context:any, messages:any) {
   );
   return result.content ?? "";
 
-  // There needs to be an abort here, somthing that checks if the conversation should be over and stops responding
-  // There should also be soemthing that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
+  // There needs to be an abort here, something that checks if the conversation should be over and stops responding
+  // There should also be something that checks to make sure it is appropriate to respond at all, for instance, if a user specifically sends a message to someone else the bot should not respond
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
