@@ -35,8 +35,18 @@ function isProviderName(value: string): value is ProviderName {
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): PortalConfig {
   const rawDefault = env.LLM_DEFAULT_PROVIDER?.trim().toLowerCase();
-  const defaultProvider: ProviderName =
-    rawDefault && isProviderName(rawDefault) ? rawDefault : "mock";
+  let defaultProvider: ProviderName = "mock";
+  if (rawDefault) {
+    if (isProviderName(rawDefault)) {
+      defaultProvider = rawDefault;
+    } else {
+      console.warn(
+        `[llm portal] Ignoring LLM_DEFAULT_PROVIDER=${JSON.stringify(env.LLM_DEFAULT_PROVIDER)} ` +
+          `— not a known provider name (${VALID_PROVIDERS.join(", ")}). ` +
+          `Falling back to "mock".`,
+      );
+    }
+  }
 
   const handlers: Record<string, ProviderName> = {};
   for (const [key, value] of Object.entries(env)) {
@@ -46,6 +56,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): PortalConfig {
     const normalized = value.trim().toLowerCase();
     if (isProviderName(normalized)) {
       handlers[handlerName] = normalized;
+    } else {
+      console.warn(
+        `[llm portal] Ignoring ${key}=${JSON.stringify(value)} ` +
+          `— not a known provider name (${VALID_PROVIDERS.join(", ")}). ` +
+          `This handler will use the default provider.`,
+      );
     }
   }
 
