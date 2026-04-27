@@ -11,7 +11,14 @@ import type {
 
 const capabilities: Capabilities = {
   streaming: true,
-  structuredOutput: true,
+  // OpenAI supports JSON-schema-constrained output via response_format, but
+  // the portal's CompleteInput surface doesn't yet carry a schema/responseFormat
+  // field — there's no way for callers to request structured output, and this
+  // adapter doesn't pass anything to the SDK that would constrain the response.
+  // Advertising the capability would let `requireCapabilities: { structuredOutput: true }`
+  // route here without anything actually enforcing structure, which is worse
+  // than honestly declining. Flip to `true` once CompleteInput grows the field.
+  structuredOutput: false,
   toolUse: true,
   vision: true,
   contextWindow: 128_000,

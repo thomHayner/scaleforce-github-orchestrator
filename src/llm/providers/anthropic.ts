@@ -11,7 +11,13 @@ import type {
 
 const capabilities: Capabilities = {
   streaming: true,
-  structuredOutput: true,
+  // Anthropic can produce structured output via tool-use schemas, but the
+  // portal's CompleteInput doesn't yet carry a schema/responseFormat field
+  // for callers to request it, and this adapter (Messages REST) doesn't pass
+  // anything that would constrain a non-tool response. See the parallel note
+  // in src/llm/providers/openai.ts. Flip to `true` once the portal grows the
+  // field and this adapter wires it up.
+  structuredOutput: false,
   toolUse: true,
   vision: true,
   contextWindow: 200_000,
